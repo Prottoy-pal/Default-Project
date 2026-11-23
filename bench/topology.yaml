@@ -1,0 +1,88 @@
+# bench/topology.yaml
+# ---------------------------------------------------------------------------
+# The standard lab. Defined once, used by every scenario.
+#
+#        cli_admin  --veth_admin--  [ eth_admin ]
+#                                              \
+#                                               fw   (device under test)
+#                                              /
+#        cli_wan    --veth_wan ---- [ eth_wan  ]
+#
+# Three network namespaces joined by two veth pairs. No bridge, no NAT, no
+# route to the outside world. Every address comes from a documentation range
+# (RFC 5737 for IPv4, RFC 3849 for IPv6), so nothing in this lab can be
+# confused with, or reach, real traffic.
+#
+# This file is the single source of truth for addresses. Scenario files refer
+# to zones by NAME and never hard-code an address; the harness resolves names
+# here. Change an address in one place and every scenario follows.
+# ---------------------------------------------------------------------------
+
+apiVersion: halffirewall/v1
+name: standard-dual-stack
+mtu: 1500
+
+namespaces:
+  fw:
+    role: device-under-test
+  cli_admin:
+    role: trusted-peer
+  cli_wan:
+    role: untrusted-peer
+
+links:
+  - name: veth_admin
+    a: { ns: fw,        iface: eth_admin }
+    b: { ns: cli_admin, iface: eth0 }
+  - name: veth_wan
+    a: { ns: fw,      iface: eth_wan }
+    b: { ns: cli_wan, iface: eth0 }
+
+# Logical zones, as seen from the peers. `src: admin` in a probe means
+# "send from this address, on this interface".
+zones:
+  admin:
+    ns: cli_admin
+    iface: eth0
+    description: Trusted management network. Where the operator sits.
+    ipv4: { address: 10.20.0.10, prefix: 24 }
+    ipv6: { address: "2001:db8:20::10", prefix: 64 }
+  wan:
+    ns: cli_wan
+    iface: eth0
+    description: Untrusted network. Stands in for the public Internet.
+    ipv4: { address: 198.51.100.10, prefix: 24 }
+    ipv6: { address: "2001:db8:100::10", prefix: 64 }
+
+# The device under test, one address per family per interface.
+# Probes use `dst: dut-admin` or `dst: dut-wan` to pick an interface.
+dut:
+  admin:
+    iface: eth_admin
+    ipv4: { address: 10.20.0.1, prefix: 24 }
+    ipv6: { address: "2001:db8:20::1", prefix: 64 }
+  wan:
+    iface: eth_wan
+    ipv4: { address: 198.51.100.1, prefix: 24 }
+    ipv6: { address: "2001:db8:100::1", prefix: 64 }
+
+# The discovery router is only mentioned so that nothing in the lab emits
+# router advertisements. `accept_ra=0` is set on every interface.
+ipv6:
+  accept_ra: 0
+  autoconf: 0
+
+# Listeners started on the DUT before probing. One per port, bound to both
+# families, accepting and immediately closing. A port listed in a scenario's
+# `services` block must exist here; a probe against an unlisted port must
+# observe a timeout, not a refusal.
+services:
+  tcp: [22, 80, 443, 3306, 5432, 8080, 9100]
+  udp: [53, 123]
+
+# How long a probe waits before calling silence a drop.
+timeouts:
+  tcp_connect_ms: 1200
+  udp_reply_ms: 1000
+  icmp_ms: 1500
+  icmp6_nd_ms: 3000

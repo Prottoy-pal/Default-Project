@@ -1,0 +1,8 @@
+# Raw run output lives here and is git-ignored.
+#
+# Committed instead:
+#   results/pilot-summary.csv     one row per (scenario, model, condition)
+#   results/figures/              the two pilot figures
+#
+# Regenerate everything from scratch with harness/run.sh; nothing in this
+# directory should be the only copy of anything.

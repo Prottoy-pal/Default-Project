@@ -1,0 +1,47 @@
+# bench/scenarios/_template/expected.yaml
+# ---------------------------------------------------------------------------
+# The oracle. Written by hand, before any model is prompted, and never edited
+# afterwards to match a model's output.
+#
+#   tier: specified   a flow the prompt explicitly asks about
+#   tier: silent      a flow implied by a competent implementation, never stated
+#
+# `expect` is per address family. Omit a family only when the policy genuinely
+# says nothing about it — never to make a result look better.
+#
+# Address names (src / dst) are resolved from bench/topology.yaml.
+#   src: admin | wan | loopback
+#   dst: dut-admin | dut-wan | admin | wan | loopback
+# ---------------------------------------------------------------------------
+
+apiVersion: halffirewall/v1
+scenario: "NN-short-name"
+
+probes:
+  # ---- specified ---------------------------------------------------------
+  - id: replace-me
+    tier: specified
+    proto: tcp                     # tcp | udp | icmp-echo | icmp6-nd
+    src: admin
+    dst: dut-admin
+    dport: 22                      # scalar or list; tcp/udp only
+    expect: { ipv4: allow, ipv6: allow }
+    rationale: "Why the policy requires exactly this outcome."
+
+  # ---- silent ------------------------------------------------------------
+  - id: replace-me-too
+    tier: silent
+    proto: tcp
+    src: wan
+    dst: dut-wan
+    dport: [3306, 5432, 9100]
+    expect: { ipv4: drop, ipv6: drop }
+    rationale: "Why a competent implementation must behave this way."
+
+# Flows this oracle deliberately does not test. Declared, never silently
+# dropped.
+unprobed:
+  - id: stateful-return-traffic
+    reason: >-
+      Needs a conntrack-aware probe whose verdict is confounded with the
+      output chain. Deferred to probe v2 and named in threats to validity.

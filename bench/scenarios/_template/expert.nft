@@ -1,0 +1,51 @@
+#!/usr/sbin/nft -f
+# ---------------------------------------------------------------------------
+# bench/scenarios/_template/expert.nft
+#
+# A hand-written reference implementation for this scenario.
+#
+# THIS IS A GATE, NOT AN EXAMPLE.
+# It must pass 100% of expected.yaml, over both address families, before any
+# model is prompted. If it does not, the oracle is wrong — not the firewall.
+# Fix the oracle.
+#
+# It is also the answer key, so it is deliberately the shape a careful
+# administrator would write: one table, one chain, stateful, dual-stack.
+# ---------------------------------------------------------------------------
+
+flush ruleset
+
+table inet filter {
+	chain input {
+		type filter hook input priority filter; policy drop;
+
+		# The host's own stack must not be filtered out of itself.
+		iifname "lo" accept
+
+		# Return traffic for connections this host accepted or started.
+		ct state established,related accept
+		ct state invalid drop
+
+		# IPv6 neighbour discovery: never mentioned by a policy, never optional.
+		icmpv6 type { nd-router-solicit, nd-router-advert,
+		              nd-neighbor-solicit, nd-neighbor-advert } accept
+
+		# ---- scenario rules go here --------------------------------
+		#
+		# Write each rule once per address family:
+		#
+		#   ip  saddr <v4-prefix> tcp dport <port> accept
+		#   ip6 saddr <v6-prefix> tcp dport <port> accept
+		#
+		# Using `ip saddr` alone inside an `inet` table is defect class C or D,
+		# depending on the chain policy. This file must not do that.
+		# ------------------------------------------------------------
+
+		counter comment "dropped by policy"
+	}
+
+	# Forwarding is not this host's job.
+	chain forward {
+		type filter hook forward priority filter; policy drop;
+	}
+}

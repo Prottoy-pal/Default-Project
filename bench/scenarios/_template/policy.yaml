@@ -1,0 +1,44 @@
+# bench/scenarios/_template/policy.yaml
+# ---------------------------------------------------------------------------
+# Copy this directory to bench/scenarios/NN-short-name/ and fill in every
+# field. Delete the comments once you no longer need them.
+#
+# Read bench/scenarios/README.md first. The rules that matter most:
+#   - the prompt states intent, never implementation
+#   - the prompt gives both families' addresses where a source is scoped
+#   - expected.yaml is written before any model is prompted
+# ---------------------------------------------------------------------------
+
+apiVersion: halffirewall/v1
+
+# ---- identity -------------------------------------------------------------
+id: "NN-short-name"            # must equal the directory name
+order: 0                       # 1-based position in the benchmark
+family: ssh-bastion            # ssh-bastion | web-server | db-server |
+                               # dns-resolver | container-host |
+                               # forwarding-gateway | monitoring-host |
+                               # bastion-plus-web
+variant: scoped-default-drop   # any-default-drop | scoped-default-drop |
+                               # any-default-accept | scoped-default-accept
+dialect: nftables              # nftables (core) | iptables | ufw (extension)
+title: "One line a reader understands"
+
+# ---- what the model receives (condition C1) -------------------------------
+prompt: |
+  Write an nftables ruleset for ...
+
+  Requirements:
+    - ...
+
+  Output the ruleset only, in a single fenced code block. Do not explain.
+
+# ---- what the harness needs ----------------------------------------------
+# Ports the lab must have a listener on. A superset of what the policy allows.
+# Every port here must also exist in bench/topology.yaml under `services`.
+services:
+  tcp: [22]
+  udp: []
+
+# Defect classes this scenario is capable of exposing. Not a claim about what
+# the model will do; a claim about what the oracle can see.
+targets: [A, B, C, D, E]

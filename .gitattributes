@@ -1,0 +1,15 @@
+# Normalise line endings so shell scripts survive the Windows → WSL trip.
+# Without this, a clone on Windows produces "bash\r: bad interpreter".
+* text=auto eol=lf
+
+*.sh   text eol=lf
+*.nft  text eol=lf
+*.py   text eol=lf
+*.yaml text eol=lf
+*.yml  text eol=lf
+*.md   text eol=lf
+*.cff  text eol=lf
+
+*.png  binary
+*.pdf  binary
+*.zip  binary

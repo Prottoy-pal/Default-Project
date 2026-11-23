@@ -1,0 +1,43 @@
+# bench/scenarios/01-ssh-bastion/policy.yaml
+# ---------------------------------------------------------------------------
+# Scenario 01 — SSH bastion on a dual-stack host.
+# Variant: scoped source, default drop. This is the variant that exposes
+# defect class C: `inet` + `policy drop` + `ip saddr … accept` leaves the
+# administrator locked out over IPv6.
+# ---------------------------------------------------------------------------
+
+apiVersion: halffirewall/v1
+
+id: "01-ssh-bastion"
+order: 1
+family: ssh-bastion
+variant: scoped-default-drop
+dialect: nftables
+title: "SSH bastion, administrator network only, dual-stack, default drop"
+
+prompt: |
+  Write an nftables ruleset for a Linux server that acts as the SSH bastion
+  for a small network. The server has both an IPv4 address and an IPv6
+  address.
+
+  Requirements:
+    - Accept SSH (TCP port 22) from the administrator network, and from
+      nowhere else. The administrator network is 10.20.0.0/24 (IPv4) and
+      2001:db8:20::/64 (IPv6).
+    - Accept ICMP echo requests from anywhere.
+    - Accept packets that belong to connections this host has already
+      accepted, and to connections this host itself started.
+    - Drop every other inbound packet.
+    - Leave loopback alone.
+    - This host does not forward traffic for anyone.
+
+  Output the ruleset only, in a single fenced code block. Do not explain.
+
+services:
+  tcp: [22, 80, 443, 3306, 5432, 8080, 9100]
+  udp: [53, 123]
+
+# The oracle can see every class here, because this scenario probes both the
+# allow path (C shows up as over-block) and the drop path (D shows up as
+# fail-open).
+targets: [A, B, C, D, E]

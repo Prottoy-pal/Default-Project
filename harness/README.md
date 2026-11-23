@@ -1,0 +1,131 @@
+# harness/
+
+Everything that turns a configuration file into a verdict. Four jobs, four
+modules, one command.
+
+```
+lab.py     build and destroy the three-namespace lab from bench/topology.yaml
+apply.py   load a candidate ruleset into the device under test
+probe.py   send real packets from the zones to the DUT, both families
+score.py   compare observed behaviour against expected.yaml, emit one JSON row
+run.sh     the only entry point anyone else needs to know
+```
+
+**Status:** designed and specified here; implemented on Sprint 1, days 3–4.
+No module is written yet, and this file will not claim otherwise.
+
+---
+
+## The command
+
+```bash
+sudo bash harness/run.sh bench/scenarios/01-ssh-bastion \
+     --config bench/scenarios/01-ssh-bastion/expert.nft \
+     --out results/expert-01.json
+```
+
+| Flag | Meaning |
+|---|---|
+| `--config PATH` | A ruleset file. Omit to read from stdin. |
+| `--out PATH` | Where to write the JSON row. Default `results/`. |
+| `--condition C1\|C2\|C3\|C4` | Recorded in the row; does not change behaviour. |
+| `--no-reset` | **Debugging only.** Skips the teardown, so state carries over. Never use it for a recorded run. |
+| `--keep` | Leave the lab running after the run, for inspection. |
+
+Exit codes: `0` every probe matched expectation · `1` at least one probe
+disagreed · `2` the harness itself failed (lab error, unparseable oracle).
+`2` must never be recorded as a model failure.
+
+---
+
+## Invariants
+
+These are not defaults. Breaking one invalidates the row.
+
+1. **Reset before every apply.** Tear the lab down and rebuild it, or restore
+   from the snapshot. A ruleset that inherits a previous chain is not the
+   ruleset that was generated.
+2. **`flush ruleset` is not injected on the model's behalf.** If a generated
+   configuration appends rules to whatever was already loaded, that is part of
+   what is being measured.
+3. **Load failure is failure on both families.** A ruleset that will not
+   apply protects nothing. Record the stderr verbatim.
+4. **No packet leaves the machine.** All three namespaces are local; there is
+   no bridge and no default route out.
+5. **A timeout is a drop, never an error.** Probe results are `allow`,
+   `drop`, or `error`. `error` fails the run and is not scored.
+6. **Every row records the model version and the prompt hash.** A result that
+   cannot be tied to an exact artifact is not a result.
+
+---
+
+## How a probe becomes a verdict
+
+| Probe type | Sends | Reads as `allow` when |
+|---|---|---|
+| `tcp` | SYN to `dport`, bound to the source address | handshake completes |
+| `udp` | datagram to `dport` | any reply arrives within the timeout |
+| `icmp-echo` | echo request | echo reply arrives |
+| `icmp6-nd` | ping to the destination, then inspect the neighbour cache | the neighbour entry is `REACHABLE` or `STALE` |
+
+A probe is scored `fail` when `observed != expected` for that family. The row
+keeps `expected` and `observed` side by side, so a wrong oracle is visible in
+the data rather than hidden in an aggregate.
+
+Defect classification reads the failure pattern, not the file text:
+
+| Pattern | Class |
+|---|---|
+| every IPv6 probe fails, `resolution: failed` | **A** or **B** — nothing filters v6, or nothing routes it |
+| v6 allow-probes fail, v6 drop-probes pass | **C** — over-block |
+| v6 allow-probes pass, v6 drop-probes fail | **D** — fail-open |
+| small v6 packets pass, ND or large ones fail | **E** — ICMPv6 mishandled |
+
+The static heuristics (`has_inet`, `has_ip6_table`, `rule_count`,
+`family_scoped_matches`) are recorded **alongside** the execution verdict and
+never instead of it. Their agreement rate is a result (RQ2), not an input.
+
+---
+
+## Output
+
+One JSON object per configuration, one file per run. The schema is frozen once
+the first dataset is collected; until then it is:
+
+```json
+{
+  "run_id": "2026-12-02T11-04-07Z__01-ssh-bastion__C1__model__r1",
+  "scenario": "01-ssh-bastion",
+  "condition": "C1",
+  "repeat": 1,
+  "model": { "provider": "", "name": "", "tag": "", "temperature": 0.0, "top_p": 1.0 },
+  "generation": { "prompt_sha256": "", "raw_output": "", "extracted_ruleset": "" },
+  "apply": { "loaded": true, "stderr": "", "duration_ms": 42 },
+  "probes": [
+    { "id": "ssh-from-admin", "family": "ipv6", "proto": "tcp",
+      "expected": "allow", "observed": "drop", "verdict": "fail",
+      "resolution": "ok", "latency_ms": 1201 }
+  ],
+  "verdicts": { "ipv4": "pass", "ipv6": "fail", "parity": "fail",
+                "specified": "pass", "silent": "fail" },
+  "defects": ["C"],
+  "heuristics": { "has_inet": true, "has_ip6_table": false,
+                  "rule_count": 7, "family_scoped_matches": 2 }
+}
+```
+
+`raw_output` is stored verbatim, including the model's prose. Post-processing
+that loses the original answer is not reproducible.
+
+---
+
+## Before the first real run
+
+```bash
+bash scripts/check-env.sh --live     # lab is possible at all
+bash harness/run.sh bench/scenarios/01-ssh-bastion \
+     --config bench/scenarios/01-ssh-bastion/expert.nft
+```
+
+The second command must print `PASS 11/11`. If it does not, stop. Every number
+produced after that point would be measuring the harness.

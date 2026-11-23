@@ -1,0 +1,69 @@
+#!/usr/sbin/nft -f
+# ---------------------------------------------------------------------------
+# bench/scenarios/01-ssh-bastion/expert.nft
+#
+# Hand-written reference for scenario 01: SSH bastion, administrator network
+# only, both address families, default drop.
+#
+# GATE: this file must pass 100% of expected.yaml — 11 probes, both families —
+# before any model is prompted. If it does not, the oracle is wrong.
+#
+# Read it as the answer key. Notice that every allow rule appears twice, once
+# per family, and that the IPv6 neighbour-discovery rule exists even though no
+# policy ever mentions it.
+# ---------------------------------------------------------------------------
+
+flush ruleset
+
+table inet filter {
+
+	chain input {
+		type filter hook input priority filter; policy drop;
+
+		# The host must not filter itself out of its own stack.
+		iifname "lo" accept
+
+		# Return traffic for flows this host accepted or started.
+		ct state established,related accept
+		ct state invalid drop
+
+		# IPv6 neighbour discovery. Not in any policy, not optional.
+		# Dropping this is defect class E: the link stops working entirely.
+		icmpv6 type { nd-router-solicit, nd-router-advert,
+		              nd-neighbor-solicit, nd-neighbor-advert } accept
+
+		# --- SSH, administrator network only, both families -------------
+		ip  saddr 10.20.0.0/24     tcp dport 22 accept
+		ip6 saddr 2001:db8:20::/64 tcp dport 22 accept
+
+		# --- Echo request from anywhere, both families -------------------
+		icmp   type echo-request accept
+		icmpv6 type echo-request accept
+
+		# Everything else falls through to `policy drop` above, which is
+		# what makes unnamed ports and UDP correctly closed.
+		counter comment "dropped by policy"
+	}
+
+	# This host does not forward for anyone.
+	chain forward {
+		type filter hook forward priority filter; policy drop;
+	}
+}
+
+# ---------------------------------------------------------------------------
+# What this file would look like if it were wrong twice over — the two
+# shapes the benchmark exists to detect. Kept here as documentation; the
+# working copies live in tests/negative/.
+#
+#   defect C  (inet + policy drop, v4-only match)
+#       ip saddr 10.20.0.0/24 tcp dport 22 accept
+#     -> the administrator is locked out over IPv6. The ruleset loads, the
+#        rule count looks right, IPv4 works.
+#
+#   defect D  (inet + policy accept, v4-only match)
+#       policy accept
+#       ip saddr 198.51.100.0/24 tcp dport 22 drop
+#     -> SSH from the untrusted zone is blocked over IPv4 and wide open over
+#        IPv6. Nothing about the file looks broken.
+# ---------------------------------------------------------------------------
