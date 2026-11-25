@@ -8,14 +8,13 @@ abstract: >-
   and IPv6, with a defect taxonomy and an evaluation of prompting, retrieval,
   and repair interventions.
 authors:
-  - family-names: "Your Surname"
-    given-names: "Your Name"
+  - family-names: "Pal"
+    given-names: "Prottoy"
     affiliation: "United International University"
-    orcid: "https://orcid.org/0000-0000-0000-0000"
 version: 0.1.0
 date-released: "2026-11-23"
 license: MIT
-repository-code: "https://github.com/your-username/half-a-firewall"
+repository-code: "https://github.com/Prottoy-pal/Default-Project"
 keywords:
   - firewall
   - nftables

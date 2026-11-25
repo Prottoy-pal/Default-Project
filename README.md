@@ -173,6 +173,10 @@ bash harness/run.sh bench/scenarios/01-ssh-bastion
 
 If `check-env.sh` fails, fix the lab first. A broken harness makes every result meaningless.
 
+> **Step 2 is not runnable yet.** `harness/run.sh` arrives with the harness on
+> Sprint 1, days 3–4. Step 1 works today. This line exists so that no reader
+> mistakes a plan for a working tool.
+
 ---
 
 ## Two-week plan
@@ -206,10 +210,10 @@ All work happens inside an isolated virtual lab on one machine. No third-party s
 @misc{halffirewall2026,
   title  = {Half a Firewall: Execution-Based Evaluation of IPv6 Policy
             Coverage in LLM-Generated Linux Firewall Configurations},
-  author = {[Your Name]},
+  author = {Prottoy Pal},
   year   = {2026},
   note   = {Research proposal, CSE 4531 Computer Security, UIU},
-  url    = {https://github.com/[your-username]/half-a-firewall}
+  url    = {https://github.com/Prottoy-pal/Default-Project}
 }
 ```
 
