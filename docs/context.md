@@ -294,7 +294,8 @@ and why.
 | Written plan, 14-day sprint, related work, ethics | **done** |
 | Lab topology and scenario schema | **done** |
 | Scenario 01 + template + oracle + expert config | **done** (not yet executed) |
-| `harness/*.py` (apply, probe, score) | **specified only — 0 lines written** |
+| `harness/*.py` (lab, apply, probe, score) | **written** — 5 modules + 2 helpers; not yet executed on Linux |
+| `tests/negative/` defect C and D controls | **written** — expected to fail scenario 01 |
 | `generate/*.py` (model runner, RAG) | **specified only — 0 lines written** |
 | WSL2 / Linux lab | **not installed — hard blocker** |
 | Pilot dataset | none yet |

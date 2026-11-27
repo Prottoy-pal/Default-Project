@@ -1,0 +1,33 @@
+#!/usr/sbin/nft -f
+# tests/negative/c-over-block.nft
+#
+# Defect class C, deliberately. Everything here is valid, idiomatic nftables
+# that a v4-only reader would call correct:
+#
+#   table inet   -> looks dual-stack
+#   policy drop  -> looks strict
+#   ip saddr ... -> matches IPv4 only
+#
+# The administrator is locked out over IPv6 and no syntax checker can see it.
+# The harness must flag this against bench/scenarios/01-ssh-bastion.
+
+flush ruleset
+
+table inet filter {
+	chain input {
+		type filter hook input priority filter; policy drop;
+
+		iifname "lo" accept
+		ct state established,related accept
+
+		ip saddr 10.20.0.0/24 tcp dport 22 accept
+
+		ip saddr 10.20.0.0/24 icmp type echo-request accept
+
+		counter comment "dropped by policy"
+	}
+
+	chain forward {
+		type filter hook forward priority filter; policy drop;
+	}
+}

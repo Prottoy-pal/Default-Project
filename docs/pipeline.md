@@ -317,7 +317,8 @@ hours, not the end of a tired evening.
 | Item | State |
 |---|---|
 | Repo published with full plan and scenario 01 | **done** (Gate A's precondition, not Gate A) |
-| Gate A — lab works | **not reached**; WSL2 not installed |
+| Gate A — lab works | **not reached**; WSL2 installed, Ubuntu distribution not yet created |
+| Phase 1 harness code | **written** (T1.1–T1.6), unexecuted |
 | Hours spent on the pipeline above | ~0 of 121 |
 
 Day 5 of a plan whose Day 1 was install-and-reboot. The schedule still works:

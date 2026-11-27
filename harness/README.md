@@ -4,15 +4,19 @@ Everything that turns a configuration file into a verdict. Four jobs, four
 modules, one command.
 
 ```
-lab.py     build and destroy the three-namespace lab from bench/topology.yaml
-apply.py   load a candidate ruleset into the device under test
-probe.py   send real packets from the zones to the DUT, both families
-score.py   compare observed behaviour against expected.yaml, emit one JSON row
-run.sh     the only entry point anyone else needs to know
+common.py         topology loading, endpoint resolution, subprocess
+lab.py            build, reset, tear down the three namespaces
+apply.py          load a candidate ruleset into the device under test
+probe.py          turn one probe description into real packets
+score.py          compare observed behaviour against expected.yaml, emit one JSON row
+run.sh            the only entry point anyone else needs to know
+_sink.py          the services the lab probes against (started by lab.py)
+_probe_helper.py  executes one probe inside one namespace, in a child process
 ```
 
-**Status:** designed and specified here; implemented on Sprint 1, days 3–4.
-No module is written yet, and this file will not claim otherwise.
+**Status:** written, not yet executed. It cannot run until WSL2 + Ubuntu exist
+(`docs/setup-wsl.md`). The first command to run against it is the expert gate
+below — until that prints `PASS`, the code above is a proposal in Python.
 
 ---
 

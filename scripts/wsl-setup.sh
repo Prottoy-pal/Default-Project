@@ -19,13 +19,15 @@ if sudo apt-get update -qq; then ok "package lists refreshed"; else bad "apt upd
 
 say "2/5  install tooling"
 if sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
-     nftables iproute2 python3 python3-pip git curl ca-certificates jq less nano >/dev/null 2>&1
-then ok "nftables, iproute2, python3, git, curl, jq"; else bad "package install failed"; fi
+     nftables iproute2 python3 python3-pip python3-yaml iputils-ping \
+     git curl ca-certificates jq less nano >/dev/null 2>&1
+then ok "nftables, iproute2, python3, python3-yaml, iputils-ping, git, curl, jq"; else bad "package install failed"; fi
 
 say "3/5  versions"
 nft --version  >/dev/null 2>&1 && ok "$(nft --version)"       || bad "nft missing"
 ip -V          >/dev/null 2>&1 && ok "$(ip -V)"               || bad "iproute2 missing"
 python3 --version              >/dev/null 2>&1 && ok "$(python3 --version 2>&1)" || bad "python3 missing"
+python3 -c "import yaml"       >/dev/null 2>&1 && ok "PyYAML available (harness reads the scenario files)" || bad "python3-yaml missing — the harness cannot parse topology.yaml"
 git --version  >/dev/null 2>&1 && ok "$(git --version)"       || bad "git missing"
 
 say "4/5  IPv6 in the kernel"

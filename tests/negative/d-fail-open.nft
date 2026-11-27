@@ -1,0 +1,31 @@
+#!/usr/sbin/nft -f
+# tests/negative/d-fail-open.nft
+#
+# Defect class D, deliberately. This is the more dangerous shape: the file
+# reads like a hardening ruleset because it contains a `drop`, while the chain
+# policy leaves every unnamed flow open on both families.
+#
+# The single v4 rule blocks SSH from the untrusted zone over IPv4. Over IPv6
+# the same SSH is accepted, because `ip saddr` never matches it and the policy
+# is `accept`.
+#
+# The harness must flag this against bench/scenarios/01-ssh-bastion.
+
+flush ruleset
+
+table inet filter {
+	chain input {
+		type filter hook input priority filter; policy accept;
+
+		iifname "lo" accept
+
+		ip saddr 198.51.100.0/24 tcp dport 22 drop
+
+		icmpv6 type { nd-router-solicit, nd-router-advert,
+		              nd-neighbor-solicit, nd-neighbor-advert } accept
+	}
+
+	chain forward {
+		type filter hook forward priority filter; policy accept;
+	}
+}
