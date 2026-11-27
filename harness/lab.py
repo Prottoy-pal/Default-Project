@@ -29,8 +29,13 @@ PIDFILE = STATE / "sink.pid"
 SINKLOG = STATE / "sink.log"
 
 
-def _ns(name):
-    return ["ip", "netns", name]
+def _ns(action, name):
+    """`ip netns add NAME` / `ip netns delete NAME`.
+
+    Not to be confused with `ip -n NAME <command>`, which addresses a
+    namespace that already exists.
+    """
+    return ["ip", "netns", action, name]
 
 
 def _step(argv, what):
@@ -70,14 +75,14 @@ def start_sink(topo):
 def down(topo):
     stop_sink()
     for ns in topo["namespaces"]:
-        common.sh(_ns(ns) + ["delete"])
+        common.sh(_ns("delete", ns))
 
 
 def up(topo):
     down(topo)
 
     for ns in topo["namespaces"]:
-        _step(_ns(ns) + ["add"], f"create namespace {ns}")
+        _step(_ns("add", ns), f"create namespace {ns}")
 
     for link in topo["links"]:
         a, b = link["a"], link["b"]
