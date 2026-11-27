@@ -1,0 +1,58 @@
+# generate/models.yaml
+# ---------------------------------------------------------------------------
+# The models, pinned before the first recorded run. A model named only as
+# "GPT" or "Llama" is not a result.
+#
+# Recorded for every row: provider, tag, digest, parameter size, quantisation,
+# temperature, top_p, seed. The runner reads the digest from the local Ollama
+# store rather than trusting this file, so a re-pull that changes the weights
+# shows up in the data.
+#
+# Status, 28 November 2026:
+#   slot 1  installed
+#   slot 2  chosen, not yet pulled
+#   slot 3  unresolved - no hosted API key on this machine
+# ---------------------------------------------------------------------------
+
+apiVersion: halffirewall/v1
+
+sampling:
+  temperature: 0.0
+  top_p: 1.0
+  seed: 0
+  num_predict: 1200
+  num_ctx: 4096
+  repeats: 3
+
+models:
+  - slot: small-local
+    spec: local:qwen2.5-coder:7b
+    role: >
+      The default local model: code-specialised, 7B, Q4. Cheap enough to run
+      fifty-four cells on a laptop CPU overnight.
+    status: installed
+    note: >
+      Pulled 28 November 2026 via the Ollama service on 127.0.0.1:11434.
+      The digest is recorded per row, not here, because it is the row that
+      must be reproducible.
+
+  - slot: contrast-local
+    spec: local:llama3.1:8b
+    role: >
+      A different family and a slightly different scale, to separate
+      "small model" from "this model's training data". Not a frontier model.
+    status: chosen
+    note: >
+      Pull only after slot 1 has produced a pilot row, so a failed download
+      cannot delay the first measurement.
+
+  - slot: hosted-frontier
+    spec: TBD
+    role: >
+      Establishes the ceiling: if a frontier model also leaves the second
+      family open, the defect is not a small-model artefact.
+    status: unresolved
+    note: >
+      Needs a free-tier API key. If this remains unresolved at the Stage 3
+      deadline, the study is reported as all-local, and that is stated as a
+      limitation rather than quietly dropped.
