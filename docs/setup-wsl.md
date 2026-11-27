@@ -92,8 +92,8 @@ Inside Ubuntu:
 ```bash
 sudo apt update
 sudo apt install -y git
-git clone https://github.com/Prottoy-pal/Default-Project.git
-cd Default-Project
+git clone https://github.com/Prottoy-pal/Default-Project.git ~/half-a-firewall
+cd ~/half-a-firewall
 bash scripts/wsl-setup.sh
 ```
 
@@ -136,7 +136,7 @@ writing the harness.
 On Windows, install the **WSL** extension in VS Code, then from Ubuntu:
 
 ```bash
-cd ~/Default-Project
+cd ~/half-a-firewall
 code .
 ```
 
@@ -150,7 +150,7 @@ here, not through `/mnt/c/...`.
 
 | Location | Verdict |
 |---|---|
-| `~/Default-Project` inside Ubuntu | **use this** — native Linux filesystem, fast git, no OneDrive |
+| `~/half-a-firewall` inside Ubuntu | **use this** — native Linux filesystem, fast git, and no OneDrive in the path |
 | `C:\Users\User\...\Default Project` | keep as a Windows backup of the writing, but do not run the lab here |
 | `/mnt/c/Users/...` from inside Ubuntu | avoid — every file operation crosses a slow bridge, and git is noticeably unreliable there |
 
