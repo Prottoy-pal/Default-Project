@@ -16,14 +16,16 @@ Checked on 28 November 2026:
 | Windows | 11 Pro, build 26300, 64-bit | fine |
 | CPU | i7-13620H, 10 cores / 16 threads | fine |
 | RAM | 15.7 GB | fine — enough for a 7–8B model later |
-| Disk free | 125.8 GB on C: | fine |
+| Disk free | 291 GB on E: | fine |
 | Virtualisation | hypervisor already running (Memory Integrity) | fine |
-| WSL package | **3.0.5 installed** | done |
+| WSL package | **3.0.5**, kernel 6.18.58.1 | done |
 | `VirtualMachinePlatform` | **enabled** | done |
-| Ubuntu distribution | not installed yet | **next** |
-| Reboot | **pending** | **required** |
+| Distribution | **Ubuntu 26.04.1 LTS, version 2**, at `E:\WSL\Ubuntu` | done |
+| Account | `prottoy`, passwordless `sudo`, systemd on | done |
+| Gate A | **passed 28 November 2026** | done |
 
-Steps 1 and 2 below are already complete. Start at step 3.
+Everything below is written as a first-time setup, and annotated with what this
+machine actually did. On a rebuild you can start at step 3.
 
 ---
 
@@ -46,44 +48,75 @@ is about the pending reboot, not about your BIOS.
 
 **Save your work and restart now.**
 
-## Step 3 — Register Ubuntu
+## Step 3 — Install and register Ubuntu
 
-Open PowerShell (normal, not elevated) and run:
+From PowerShell (normal, not elevated):
 
 ```powershell
-wsl --install -d Ubuntu
+wsl --install -d Ubuntu --location 'E:\WSL\Ubuntu' --no-launch
 ```
 
-It downloads roughly 500 MB and then asks for two things:
+- `--location` puts the distribution's disk (`ext4.vhdx`) on E: instead of
+  burying it in `%LOCALAPPDATA%`. On this machine that is 291 GB free rather
+  than 125 GB.
+- `--no-launch` downloads and registers the distribution without opening its
+  first-run prompt, so the account can be created deliberately in the next
+  step.
+- Expect `Distribution successfully installed.` then, in `wsl -l -v`,
+  `Ubuntu  Stopped  2`.
 
+If it stops with `Wsl/InstallDistro/Service/RegisterDistro/E_ILLEGAL_STATE_CHANGE`
+and *"An install, uninstall, or conversion is in progress"*, an earlier attempt
+still holds the install lock: run `wsl --shutdown`, wait a few seconds, and
+retry. That is exactly what happened here — the first attempt was interrupted
+by a host restart mid-download, and the retry succeeded unchanged.
+
+### Create the account (non-interactive)
+
+`--no-launch` means no `Enter new UNIX username:` prompt. Create the account
+from root instead, so the setup is reproducible:
+
+```powershell
+wsl -d Ubuntu -u root -- bash
 ```
-Enter new UNIX username:
-New password:
-Retype new password:
-```
-
-Rules for these:
-
-- The username is **lowercase, no spaces** — e.g. `prottoy`. It is not your
-  Windows name and does not need to match it.
-- The password **does not echo** while you type. That is normal. Nothing appears
-  at all, not even asterisks.
-- This password becomes `sudo`. Pick something you will remember; there is no
-  password-reset button.
-
-When it finishes you land in a shell like:
-
-```
-prottoy@DESKTOP-XXXX:~$
-```
-
-Verify the version:
 
 ```bash
-wsl.exe -l -v      # STATE: Running, VERSION: 2
+useradd -m -s /bin/bash -G sudo prottoy
+passwd -l prottoy        # no UNIX password: WSL never shows a login prompt
+install -d -m 0755 /etc/sudoers.d
+echo 'prottoy ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/90-halffirewall
+chmod 0440 /etc/sudoers.d/90-halffirewall
+visudo -cf /etc/sudoers.d/90-halffirewall
 ```
 
-If it says `VERSION 1`, run `wsl --set-version Ubuntu 2`.
+Then `/etc/wsl.conf`:
+
+```ini
+[boot]
+systemd=true
+
+[user]
+default=prottoy
+```
+
+and `wsl --terminate Ubuntu` so both settings take effect.
+
+**Why passwordless sudo.** This account is only reachable through
+`wsl -d Ubuntu` on this laptop; there is no login prompt, no SSH server, and no
+route in from the network. Passwordless sudo keeps every command in this
+repository copy-pasteable and keeps the harness from blocking on a prompt in
+the middle of a 40-probe run. If you would rather have a password, run
+`sudo passwd prottoy`, then delete `/etc/sudoers.d/90-halffirewall` — and
+expect `sudo` to ask for it from then on.
+
+Verify:
+
+```powershell
+wsl -l -v                 # Ubuntu  Running  2
+wsl -d Ubuntu -- whoami   # prottoy
+```
+
+If the version says `1`, run `wsl --set-version Ubuntu 2`.
 
 ## Step 4 — Install the tools
 
@@ -97,16 +130,23 @@ cd ~/half-a-firewall
 bash scripts/wsl-setup.sh
 ```
 
-`wsl-setup.sh` installs `nftables`, `iproute2`, `python3`, `curl`, `jq`, then
-verifies four things: the binaries exist, the kernel has an IPv6 stack, IPv6 is
-not disabled, and network namespaces can be created.
+`wsl-setup.sh` installs `nftables`, `iproute2`, `python3`, `python3-yaml`,
+`iputils-ping`, `git`, `curl`, `jq`, then verifies four things: the binaries
+exist, the kernel has an IPv6 stack, IPv6 is not disabled, and network
+namespaces can be created.
 
 Expected tail:
 
 ```
+5/5  network namespaces
+  OK    namespaces can be created (CAP_SYS_ADMIN present)
+
 summary
   READY  Now run:  sudo bash scripts/check-env.sh --live
 ```
+
+Installed on 28 November 2026: nftables 1.1.6, iproute2 6.19.0, Python 3.14.4,
+PyYAML 6.0.3, git 2.53.0, iputils 20250605.
 
 ## Step 5 — Gate A
 
@@ -131,6 +171,16 @@ You are looking for exactly these lines:
 ping failing, stop and use the troubleshooting table below — do not start
 writing the harness.
 
+Passed here on 28 November 2026, on Ubuntu 26.04.1 with kernel 6.18.58.1.
+The run also checks that an `inet` table can be created, which is the table
+family the whole benchmark depends on.
+
+One WSL detail that costs time if you do not know it: `/tmp` disappears when the
+distribution stops, and WSL stops it when the last process exits and
+`wsl --shutdown` runs. Any pidfile or log the harness leaves under
+`/tmp/halffirewall` is not durable state. The harness rebuilds it on every
+`--reset`, which is why the reset is not optional.
+
 ## Step 6 — Open the repo in VS Code (optional but recommended)
 
 On Windows, install the **WSL** extension in VS Code, then from Ubuntu:
@@ -150,13 +200,13 @@ here, not through `/mnt/c/...`.
 
 | Location | Verdict |
 |---|---|
-| `~/half-a-firewall` inside Ubuntu | **use this** — native Linux filesystem, fast git, and no OneDrive in the path |
-| `C:\Users\User\...\Default Project` | keep as a Windows backup of the writing, but do not run the lab here |
-| `/mnt/c/Users/...` from inside Ubuntu | avoid — every file operation crosses a slow bridge, and git is noticeably unreliable there |
+| `~/half-a-firewall` inside Ubuntu | **runs the lab** — native Linux filesystem, fast git, no `/mnt` bridge |
+| `E:\Half-firwall` on Windows | **the writing copy** — VS Code, docs, commits, pushes |
+| `/mnt/e/Half-firwall` from inside Ubuntu | avoid for lab work — every file operation crosses a slow bridge, and `nft` runs there are not measuring what you think |
+| `C:\Users\User\OneDrive\...` | **retired** — OneDrive corrupts `.git` |
 
-The lab work (namespaces, nftables, probes, model outputs) belongs in the Linux
-home directory. The GitHub remote is the synchronisation point between the two
-copies, not a shared folder.
+The two copies exchange work through GitHub, which is the synchronisation point,
+not a shared folder. `docs/git-workflow.md` has the daily loop.
 
 ---
 

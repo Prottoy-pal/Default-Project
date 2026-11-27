@@ -312,19 +312,25 @@ hours, not the end of a tired evening.
 
 ---
 
-## 12. Where you are, 27 November
+## 12. Where you are, 28 November
 
 | Item | State |
 |---|---|
-| Repo published with full plan and scenario 01 | **done** (Gate A's precondition, not Gate A) |
-| Gate A — lab works | **not reached**; WSL2 installed, Ubuntu distribution not yet created |
-| Phase 1 harness code | **written** (T1.1–T1.6), unexecuted |
-| Hours spent on the pipeline above | ~0 of 121 |
+| Repo published with full plan, scenario 01 and 02 | **done** |
+| Gate A — lab works | **passed 28 Nov** · Ubuntu 26.04.1 on WSL2 (kernel 6.18.58.1), both pings across a veth pair |
+| Gate B — oracle can fail | **passed 28 Nov** · expert 37/37 (01) and 21/21 (02); negatives exit 1 with `[C,E]`, `[D]`, `[D]` |
+| Phase 1 harness code | **executed** (T1.1–T1.6); three harness bugs found and fixed, listed in the commit log |
+| Hours spent on the pipeline above | ~6 of 121 |
 
-Day 5 of a plan whose Day 1 was install-and-reboot. The schedule still works:
-Phase 0 costs 2.5 hours, and Phases 1–2 absorb the slip because they were
-estimated with a weekend buffer. What it cannot absorb is another week without
-Gate A.
+The two gates that the plan called non-negotiable are both green, and the second
+one earned its keep: running it found that the harness had never actually built
+the lab, that the peers had no route through the DUT, and that a harness
+failure exited 1 — the same code as "a probe disagreed". None of those would
+have been visible from a code review.
 
-**Next action, unchanged:** `wsl --install -d Ubuntu`, reboot, then
-`sudo bash scripts/check-env.sh --live`.
+The honest schedule position: ~6 of 121 hours, with the environment work
+(costing more than the 2.5 h estimate, mostly install retries) finished. Phase 1
+is 12 h of remaining work, of which the model runner is the next item.
+
+**Next action:** `generate/run_models.py` and scenarios 03–06, then a pilot
+dataset of six scenarios × three models × three repeats.

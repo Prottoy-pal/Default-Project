@@ -128,13 +128,15 @@ Defects **C** and **D** are the novel ones. They survive every rule-counting che
 │   ├── related-work.md        literature table, incl. SBRC 2026
 │   └── ethics.md              safety rules for the lab
 ├── bench/
-│   ├── topology.yaml          addresses and links — defined once, used everywhere
+│   ├── topology.yaml          addresses, routes, links — defined once, used everywhere
 │   └── scenarios/
 │       ├── README.md          the scenario format, and the rules for writing one
 │       ├── _template/         copy this to start a new scenario
-│       └── 01-ssh-bastion/    policy.yaml + expected.yaml + expert.nft
-├── harness/                   apply / probe / score  (built in Sprint 1)
-├── generate/                  prompts + model runner (built in Sprint 1)
+│       ├── 01-ssh-bastion/    11 probes · scoped source, default drop · class C
+│       └── 02-web-server/     11 probes · scoped source, default accept · class D
+├── harness/                   apply / probe / score  (run with sudo)
+├── generate/                  prompts + model runner (next: Sprint 1, days 8–9)
+├── tests/negative/            deliberately broken configs the oracle must reject
 ├── results/                   raw JSON, git-ignored except .gitkeep
 └── scripts/
     ├── wsl-setup.sh           installs the toolchain inside Ubuntu
@@ -169,19 +171,24 @@ First time on Windows? Follow **[docs/setup-wsl.md](docs/setup-wsl.md)** — it 
 the reboot, the Ubuntu first-run, and the four errors you are most likely to hit.
 
 ```bash
-# 1. Verify your lab
-bash scripts/check-env.sh
+# 1. Verify your lab (needs root: namespaces, nftables)
+sudo bash scripts/check-env.sh --live
 
 # 2. Run one scenario against its expert configuration
-#    (this must print PASS before you ever prompt a model)
-bash harness/run.sh bench/scenarios/01-ssh-bastion
+#    (this must print PASS 37/37 before you ever prompt a model)
+sudo bash harness/run.sh bench/scenarios/01-ssh-bastion --reset
 ```
 
 If `check-env.sh` fails, fix the lab first. A broken harness makes every result meaningless.
 
-> **Step 2 is not runnable yet.** `harness/run.sh` arrives with the harness on
-> Sprint 1, days 3–4. Step 1 works today. This line exists so that no reader
-> mistakes a plan for a working tool.
+A broken configuration is supposed to fail. Prove that the oracle can fail
+before trusting anything it passes:
+
+```bash
+sudo bash harness/run.sh bench/scenarios/02-web-server \
+     --config tests/negative/d-scoped-accept.nft --reset
+# exit 1, defects=[D], exactly one failing probe: ssh-from-wan tcp:22 ipv6
+```
 
 ---
 
@@ -201,7 +208,9 @@ detail. When the two disagree, `pipeline.md` is newer.
 - [x] Topic selected and scoped
 - [x] Preliminary novelty check (arXiv, OpenAlex, GitHub, HuggingFace, Zenodo)
 - [x] Closest prior work read (SBRC 2026, full text)
-- [ ] **Sprint 1** — lab + 6 scenarios + pilot run
+- [x] **Gate A** — isolated dual-stack lab works (28 Nov 2026)
+- [x] **Gate B** — oracle passes the expert and rejects known-bad configs (28 Nov 2026)
+- [ ] **Sprint 1** — 6 scenarios + pilot run *(2 of 6 scenarios done)*
 - [ ] Benchmark frozen at 32 scenarios
 - [ ] Full generation runs (C1–C3)
 - [ ] Analysis, figures, paper draft
