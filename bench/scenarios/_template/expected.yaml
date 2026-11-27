@@ -1,4 +1,4 @@
---# bench/scenarios/_template/expected.yaml
+# bench/scenarios/_template/expected.yaml
 # ---------------------------------------------------------------------------
 # The oracle. Written by hand, before any model is prompted, and never edited
 # afterwards to match a model's output.
