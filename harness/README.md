@@ -14,9 +14,11 @@ _sink.py          the services the lab probes against (started by lab.py)
 _probe_helper.py  executes one probe inside one namespace, in a child process
 ```
 
-**Status:** written, not yet executed. It cannot run until WSL2 + Ubuntu exist
-(`docs/setup-wsl.md`). The first command to run against it is the expert gate
-below — until that prints `PASS`, the code above is a proposal in Python.
+**Status:** executed 28 November 2026, Ubuntu 26.04.1 / nftables 1.1.6. Gate B
+passed: scenario 01 expert 37/37, scenario 02 expert 21/21, and the negative
+controls exit 1 with the expected classes. The three bugs found by running it
+(arguments to `ip netns`, missing peer routes, exit code 1 for harness failure)
+are fixed; that is why the status is a date and not a promise.
 
 ---
 
@@ -25,16 +27,20 @@ below — until that prints `PASS`, the code above is a proposal in Python.
 ```bash
 sudo bash harness/run.sh bench/scenarios/01-ssh-bastion \
      --config bench/scenarios/01-ssh-bastion/expert.nft \
-     --out results/expert-01.json
+     --out results/expert-01.json --reset
 ```
 
 | Flag | Meaning |
 |---|---|
-| `--config PATH` | A ruleset file. Omit to read from stdin. |
-| `--out PATH` | Where to write the JSON row. Default `results/`. |
+| `--config PATH` | A ruleset file. Defaults to the scenario's own `expert.nft`. |
+| `--out PATH` | The JSON row to write. Default `results/<run_id>.json`. |
 | `--condition C1\|C2\|C3\|C4` | Recorded in the row; does not change behaviour. |
-| `--no-reset` | **Debugging only.** Skips the teardown, so state carries over. Never use it for a recorded run. |
+| `--repeat N`, `--model M` | Recorded in the row and in the `run_id`. |
+| `--reset` | Rebuild the lab before applying. Required for any recorded run. |
 | `--keep` | Leave the lab running after the run, for inspection. |
+
+`generate/run_models.py` is the normal caller: it always passes `--reset`,
+because a row that inherits state from the previous one is not a measurement.
 
 Exit codes: `0` every probe matched expectation · `1` at least one probe
 disagreed · `2` the harness itself failed (lab error, unparseable oracle).

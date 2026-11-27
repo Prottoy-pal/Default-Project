@@ -10,7 +10,9 @@ retrieval/        the corpus for C3, plus the log of what was retrieved per call
 models.yaml       exact model identifiers, providers, sampling parameters
 ```
 
-**Status:** specified here; implemented on Sprint 1, days 8–9.
+**Status:** implemented 28 November 2026. C1, C2 and C4 run end to end. C3 is
+wired to the retriever but refuses to run until `retrieval/corpus/` has the
+documentation passages in it — an empty corpus cannot support a C3 claim.
 
 ---
 
@@ -19,14 +21,23 @@ models.yaml       exact model identifiers, providers, sampling parameters
 | Code | What the model receives | What this isolates |
 |---|---|---|
 | **C1** | The scenario prompt, unchanged | Baseline knowledge |
-| **C2** | C1 + one sentence: *"This server has a public IPv4 address and a public IPv6 address."* | Whether the model already knew, versus whether it needed telling |
+| **C2** | C1 + *"The ruleset must enforce this policy for both IPv4 and IPv6 traffic."* | Whether the model needed to be told to apply the policy to both families |
 | **C3** | C1 + retrieved passages from the nftables wiki, `man nft`, RFC 9099 | Whether documentation closes the gap |
 | **C4** | C1, then the failing probes, then one retry (max 2 rounds) | Whether feedback closes the gap |
 
-C1 versus C2 is the load-bearing comparison. If C1 ≈ C2, plain prompting is
-already family-aware and the finding is narrow. If C1 < C2, the failure is a
-prompting artefact — and that is the more actionable result, because it says
-which single sentence an operator should add.
+C1 versus C2 is the load-bearing comparison. If C1 ≈ C2, an explicit dual-stack
+instruction does not help, and the finding is about capability rather than
+prompting. If C1 < C2, the failure is a prompting artefact — and that is the
+more actionable result, because it names the one sentence an operator should
+add.
+
+**Why C2 changed.** The original design appended *"this server has a public IPv4
+address and a public IPv6 address"*. Every scenario prompt already says exactly
+that, and the authoring rules require both families' prefixes to be stated
+whenever a source is scoped. The sentence would have been a no-op, and the
+headline C1-vs-C2 comparison a tautology. C2 now carries the *instruction* to
+enforce on both families, which is the intervention worth measuring. The change
+was made before the first recorded row; no data was discarded.
 
 C3 and C4 exist to answer RQ3, not to improve the headline number. Report all
 four. A paper that only reports the condition that worked is not a measurement.

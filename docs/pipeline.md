@@ -207,7 +207,7 @@ likely to overrun. Reserve the weekend for it.
 | ID | Task | Output | Time | Diff | Depends on | Note |
 |---|---|---|---|---|---|---|
 | **T2.1** | Freeze the YAML schema; write it into `bench/scenarios/README.md` as final | Schema v1 | 1 h | **1** | T1.5 | Before this point, changing the schema is free. After, it costs a re-run |
-| **T2.2** | Scenario 02 — web server, scoped source, `policy drop` | 3 files + passing expert | 3 h | **3** | T2.1 | Second one is always slower than expected; topology reuse starts here |
+| **T2.2** | Scenario 02 — web server, scoped source, `policy accept` — the class-D mirror of 01 | 3 files + passing expert | 3 h | **3** | T2.1 | Second one is always slower than expected; topology reuse starts here |
 | **T2.3** | Scenarios 03–06 — DB, DNS, container host, gateway | 12 files + 4 passing experts | 10 h | **3** | T2.2 | ~2.5 h each once the pattern holds |
 | **T2.4** | Scenarios 07–12 — remaining families and variants to reach the course minimum | 18 files + 6 passing experts | 12 h | **2** | T2.3 | Drops to difficulty 2 because you are recombining, not designing |
 | **T2.5** | Second-coder check on 20% of oracles (blind: they read the prompt, write the expected outcomes, you diff) | Agreement note in `docs/` | 4 h | **3** | T2.4 | Needs another person; if unavailable, record it as an unmitigated threat instead of pretending |

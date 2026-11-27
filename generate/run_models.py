@@ -331,6 +331,9 @@ def main():
 
         last = rounds[-1]
         final = row  # last scoring row, complete
+        # Deterministic identity: a cell is addressed by what it is, not by
+        # when it ran. That makes a batch resumable and a row citable.
+        final["run_id"] = f"{policy['id']}__{args.condition}__{model_id}__r{repeat}"
         final["scenario"] = policy["id"]
         final["family"] = policy.get("family")
         final["variant"] = policy.get("variant")

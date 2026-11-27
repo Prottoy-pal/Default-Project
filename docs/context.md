@@ -157,7 +157,7 @@ full benchmark**.
 | Code | Model receives | Isolates |
 |---|---|---|
 | **C1** | The policy only | Baseline knowledge |
-| **C2** | C1 + "this server has a public IPv4 and a public IPv6 address" | Whether the model knew, or needed telling |
+| **C2** | C1 + "the ruleset must enforce this policy for both IPv4 and IPv6 traffic" | Whether the model needed to be told to apply the policy to both families |
 | **C3** | C1 + retrieved nftables wiki / `man nft` / RFC 9099 passages | Whether documentation closes the gap |
 | **C4** *(optional)* | C1, then the failing probes, then up to 2 retries | Whether feedback closes the gap |
 

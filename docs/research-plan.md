@@ -101,7 +101,7 @@ Variant (ii) triggers defect **C**. Variant (iv) triggers defect **D**. This is 
 | Code | Condition | Model receives |
 |---|---|---|
 | **C1** | Plain | The policy only |
-| **C2** | Explicit dual-stack | Policy + "this server has both a public IPv4 and a public IPv6 address" |
+| **C2** | Explicit dual-stack | Policy + "the ruleset must enforce this policy for both IPv4 and IPv6 traffic" |
 | **C3** | RAG | Policy + retrieved passages from nftables wiki, `man nft`, CIS benchmarks |
 | **C4** | Repair (optional) | C1, then sees which probes failed and retries, up to 2 rounds |
 
