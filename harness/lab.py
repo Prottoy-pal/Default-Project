@@ -38,10 +38,16 @@ def _ns(action, name):
     return ["ip", "netns", action, name]
 
 
+def _die(msg):
+    """Exit 2: the harness failed, not the configuration under test."""
+    print(msg, file=sys.stderr)
+    raise SystemExit(2)
+
+
 def _step(argv, what):
     r = common.sh(argv)
     if r.returncode != 0:
-        raise SystemExit(f"FAILED: {what}\n  cmd: {' '.join(argv)}\n  err: {r.stderr.strip()}")
+        _die(f"FAILED: {what}\n  cmd: {' '.join(argv)}\n  err: {r.stderr.strip()}")
 
 
 def stop_sink():
@@ -67,7 +73,7 @@ def start_sink(topo):
     )
     time.sleep(1.0)
     if proc.poll() is not None:
-        raise SystemExit(f"sink died:\n{SINKLOG.read_text()}")
+        _die(f"sink died:\n{SINKLOG.read_text()}")
     PIDFILE.write_text(str(proc.pid))
     return proc.pid
 
@@ -126,15 +132,6 @@ def up(topo):
         common.sh(["ip", "netns", "exec", fwd.get("ns", common.DUT_NS),
                    "sysctl", "-qw", f"{key}={val}"])
 
-    # Peer routes. Without these, a peer can reach nothing but its own /24 and
-    # the cross-zone probes never become packets the DUT has to route.
-    for ns, routes in (topo.get("routes") or {}).items():
-        for fam, spec in routes.items():
-            via = common.resolve(topo, spec["via"])[fam]
-            _step(["ip", "-n", ns, "-6" if fam == "ipv6" else "-4",
-                   "route", "add", spec["to"], "via", via],
-                  f"route {ns} {fam} {spec['to']} via {via}")
-
     # IPv6 housekeeping: no router advertisements, IPv6 definitely on
     for ns in topo["namespaces"]:
         for key, val in (("accept_ra", topo.get("ipv6", {}).get("accept_ra", 0)),
@@ -148,6 +145,15 @@ def up(topo):
         for iface in {z["iface"] for z in topo["zones"].values() if z["ns"] == ns} | \
                      {d["iface"] for d in topo["dut"].values() if ns == common.DUT_NS}:
             _step(["ip", "-n", ns, "link", "set", iface, "up"], f"{iface} up in {ns}")
+
+    # Peer routes: after the links are up, because a gateway is only
+    # "reachable" while the interface that carries it is up.
+    for ns, routes in (topo.get("routes") or {}).items():
+        for fam, spec in routes.items():
+            via = common.resolve(topo, spec["via"])[fam]
+            _step(["ip", "-n", ns, "-6" if fam == "ipv6" else "-4",
+                   "route", "add", spec["to"], "via", via],
+                  f"route {ns} {fam} {spec['to']} via {via}")
 
     start_sink(topo)
     time.sleep(0.3)
@@ -171,7 +177,7 @@ def main():
     topo = common.load_topology(args.topology)
 
     if os.geteuid() != 0:
-        raise SystemExit("run with sudo: network namespaces need CAP_SYS_ADMIN")
+        _die("run with sudo: network namespaces need CAP_SYS_ADMIN")
 
     if args.action == "up":
         up(topo)

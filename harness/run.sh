@@ -8,6 +8,7 @@
 # Exit codes: 0 all probes matched, 1 a probe disagreed, 2 harness failure.
 
 set -uo pipefail
+export PYTHONDONTWRITEBYTECODE=1
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 

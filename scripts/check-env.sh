@@ -70,10 +70,13 @@ if command -v nft >/dev/null 2>&1; then
   else
     warn "cannot read ruleset without root (expected)"
   fi
-  if nft describe inet >/dev/null 2>&1; then
+  if [[ "$(id -u)" -eq 0 ]] && nft add table inet halffirewall_check 2>/dev/null; then
+    nft delete table inet halffirewall_check 2>/dev/null
     pass "inet table family supported"
+  elif [[ "$(id -u)" -ne 0 ]]; then
+    warn "cannot verify inet family without root (expected)"
   else
-    warn "could not verify inet family"
+    fail "kernel/nftables does not accept an inet table"
   fi
 fi
 

@@ -123,6 +123,12 @@ def summarise(rows):
     }
 
 
+def _die(msg):
+    """Exit 2: the harness failed, not the configuration under test."""
+    print(msg, file=sys.stderr)
+    raise SystemExit(2)
+
+
 def validate(scenario, expected, topo):
     known = common.endpoints(topo)
     problems = []
@@ -141,9 +147,9 @@ def validate(scenario, expected, topo):
             if want not in ("allow", "drop"):
                 problems.append(f"probe {p.get('id')}: bad expectation {want!r}")
     if problems:
-        raise SystemExit("scenario invalid:\n  " + "\n  ".join(problems))
+        _die("scenario invalid:\n  " + "\n  ".join(problems))
     if not expected.get("probes"):
-        raise SystemExit(f"{scenario}: expected.yaml declares no probes")
+        _die(f"{scenario}: expected.yaml declares no probes")
 
 
 def main():

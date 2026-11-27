@@ -22,7 +22,10 @@ table inet filter {
 
 		ip saddr 10.20.0.0/24 tcp dport 22 accept
 
-		ip saddr 10.20.0.0/24 icmp type echo-request accept
+		# Echo from anywhere, IPv4 only — the IPv4 half is complete and
+		# correct. That is what makes this control useful: a reader can
+		# check every IPv4 flow and find nothing wrong.
+		icmp type echo-request accept
 
 		counter comment "dropped by policy"
 	}
