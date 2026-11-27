@@ -121,6 +121,7 @@ Defects **C** and **D** are the novel ones. They survive every rule-counting che
 ├── README.md                  ← you are here
 ├── docs/
 │   ├── context.md             the whole project in one file — start here
+│   ├── setup-wsl.md           Windows → WSL2 → Ubuntu, step by step
 │   ├── pipeline.md            every task, with time, difficulty and gates
 │   ├── research-plan.md       full design, hypotheses, metrics, threats
 │   ├── sprint-01.md           2-week work plan (23 Nov – 6 Dec 2026)
@@ -136,6 +137,7 @@ Defects **C** and **D** are the novel ones. They survive every rule-counting che
 ├── generate/                  prompts + model runner (built in Sprint 1)
 ├── results/                   raw JSON, git-ignored except .gitkeep
 └── scripts/
+    ├── wsl-setup.sh           installs the toolchain inside Ubuntu
     └── check-env.sh           verifies your lab can run the benchmark
 ```
 
@@ -162,6 +164,9 @@ Full schema and authoring rules: [bench/scenarios/README.md](bench/scenarios/REA
 ## Quick start
 
 **Requirements:** Windows 10/11 with WSL2 Ubuntu, or any Linux box. No GPU. No cloud account.
+
+First time on Windows? Follow **[docs/setup-wsl.md](docs/setup-wsl.md)** — it covers
+the reboot, the Ubuntu first-run, and the four errors you are most likely to hit.
 
 ```bash
 # 1. Verify your lab
