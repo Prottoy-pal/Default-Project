@@ -121,6 +121,7 @@ Defects **C** and **D** are the novel ones. They survive every rule-counting che
 ├── README.md                  ← you are here
 ├── docs/
 │   ├── context.md             the whole project in one file — start here
+│   ├── pipeline.md            every task, with time, difficulty and gates
 │   ├── research-plan.md       full design, hypotheses, metrics, threats
 │   ├── sprint-01.md           2-week work plan (23 Nov – 6 Dec 2026)
 │   ├── related-work.md        literature table, incl. SBRC 2026
@@ -179,9 +180,14 @@ If `check-env.sh` fails, fix the lab first. A broken harness makes every result 
 
 ---
 
-## Two-week plan
+## Plan and pipeline
 
-See **[docs/sprint-01.md](docs/sprint-01.md)** — 14 days, three decision gates, and a written cut-list so the project cannot silently overrun.
+**[docs/pipeline.md](docs/pipeline.md)** is the master view: every task with an
+ID, a time estimate, a difficulty from 1 (mechanical) to 4 (open-ended), its
+dependencies, and the gate it must pass. 121 hours, six gates, one cut ladder.
+
+**[docs/sprint-01.md](docs/sprint-01.md)** is the first two weeks in daily
+detail. When the two disagree, `pipeline.md` is newer.
 
 ---
 
