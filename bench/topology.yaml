@@ -66,6 +66,29 @@ dut:
     ipv4: { address: 198.51.100.1, prefix: 24 }
     ipv6: { address: "2001:db8:100::1", prefix: 64 }
 
+# Each peer's only way off its own link is through the DUT. These routes are
+# what make a "this host must not forward" probe mean something: without them
+# the packet dies with "network unreachable" before it ever reaches the
+# forward hook, and the probe passes whatever the ruleset says.
+#
+# `via` names a DUT side, not an address, so the addresses stay in one place.
+routes:
+  cli_admin:
+    ipv4: { to: default, via: dut-admin }
+    ipv6: { to: default, via: dut-admin }
+  cli_wan:
+    ipv4: { to: default, via: dut-wan }
+    ipv6: { to: default, via: dut-wan }
+
+# The DUT is a router for this lab even when the scenario says it forwards
+# nothing. Kernel forwarding has to be on, or the forward hook is never
+# consulted and "no forwarding" cannot be distinguished from "no route".
+forwarding:
+  ns: fw
+  sysctls:
+    net.ipv4.ip_forward: 1
+    net.ipv6.conf.all.forwarding: 1
+
 # The discovery router is only mentioned so that nothing in the lab emits
 # router advertisements. `accept_ra=0` is set on every interface.
 ipv6:

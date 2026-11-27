@@ -1,0 +1,69 @@
+#!/usr/sbin/nft -f
+# ---------------------------------------------------------------------------
+# bench/scenarios/02-web-server/expert.nft
+#
+# Hand-written reference for scenario 02: public HTTPS, SSH scoped to the
+# administrator network, both address families, accepting base policy.
+#
+# GATE: this file must pass 100% of expected.yaml — 11 probes, both families —
+# before any model is prompted. If it does not, the oracle is wrong.
+#
+# The shape to notice is at the bottom of the input chain. In the default-drop
+# variant a scoped allow is enough, because everything else falls through. In
+# the default-accept variant the same intent needs a scoped *drop*, written
+# once per family. That second line is the one a family-blind model omits,
+# and its absence is defect D.
+# ---------------------------------------------------------------------------
+
+flush ruleset
+
+table inet filter {
+
+	chain input {
+		type filter hook input priority filter; policy accept;
+
+		# The host must not filter itself out of its own stack.
+		iifname "lo" accept
+
+		# Return traffic for flows this host accepted or started.
+		ct state established,related accept
+		ct state invalid drop
+
+		# IPv6 neighbour discovery. Not in any policy, not optional.
+		icmpv6 type { nd-router-solicit, nd-router-advert,
+		              nd-neighbor-solicit, nd-neighbor-advert } accept
+
+		# --- Public HTTPS, both families --------------------------------
+		tcp dport 443 accept
+
+		# --- SSH from the administrator network, both families ----------
+		ip  saddr 10.20.0.0/24     tcp dport 22 accept
+		ip6 saddr 2001:db8:20::/64 tcp dport 22 accept
+
+		# --- Echo request from anywhere, both families -------------------
+		icmp   type echo-request accept
+		icmpv6 type echo-request accept
+
+		# --- SSH from everywhere else: the one explicit deny ------------
+		# The base policy is accept, so refusing SSH needs a rule. It needs
+		# one rule per family. Omitting the second is defect D: the file
+		# still loads, still contains a `drop`, and still reads as correct.
+		ip  saddr != 10.20.0.0/24     tcp dport 22 drop
+		ip6 saddr != 2001:db8:20::/64 tcp dport 22 drop
+	}
+
+	# This host does not forward for anyone.
+	chain forward {
+		type filter hook forward priority filter; policy drop;
+	}
+}
+
+# ---------------------------------------------------------------------------
+# The defect this scenario exists to detect, for the record. The working copy
+# is tests/negative/d-scoped-accept.nft.
+#
+#   defect D  (inet + policy accept, scoped drop in one family)
+#       ip saddr != 10.20.0.0/24 tcp dport 22 drop
+#     -> SSH from the untrusted zone is refused over IPv4 and answered over
+#        IPv6. Every rule is syntactically valid; nothing looks missing.
+# ---------------------------------------------------------------------------

@@ -1,0 +1,162 @@
+# bench/scenarios/02-web-server/expected.yaml
+# ---------------------------------------------------------------------------
+# Oracle for scenario 02. Written before any model was prompted.
+#
+# What the two tiers mean here:
+#   specified — HTTPS on both families, SSH scoped to the administrator
+#               network on both families, echo from anywhere, no forwarding.
+#   silent    — loopback intact, and IPv6 neighbour discovery working. Both
+#               are implied by "a server that works" and neither is stated.
+#
+# This scenario deliberately does not test unnamed-port closure: its variant
+# keeps an accepting base policy, so leaving port 8080 open is the stated
+# design, not a defect. The default-drop sibling of this family is where that
+# probe belongs. Declared in `unprobed` below rather than quietly dropped.
+# ---------------------------------------------------------------------------
+
+apiVersion: halffirewall/v1
+scenario: "02-web-server"
+
+probes:
+  # ======================= specified =====================================
+  - id: https-from-wan
+    tier: specified
+    proto: tcp
+    src: wan
+    dst: dut-wan
+    dport: 443
+    expect: { ipv4: allow, ipv6: allow }
+    rationale: >-
+      The whole point of the host is a public HTTPS site, and "from anywhere"
+      includes both families.
+
+  - id: https-from-admin
+    tier: specified
+    proto: tcp
+    src: admin
+    dst: dut-admin
+    dport: 443
+    expect: { ipv4: allow, ipv6: allow }
+    rationale: >-
+      The administrator network is part of "anywhere". A ruleset that only
+      exposes HTTPS on the untrusted interface has narrowed the policy.
+
+  - id: ssh-from-admin
+    tier: specified
+    proto: tcp
+    src: admin
+    dst: dut-admin
+    dport: 22
+    expect: { ipv4: allow, ipv6: allow }
+    rationale: >-
+      SSH is permitted from the administrator network, whose IPv4 and IPv6
+      prefixes the prompt states explicitly.
+
+  - id: ssh-from-wan
+    tier: specified
+    proto: tcp
+    src: wan
+    dst: dut-wan
+    dport: 22
+    expect: { ipv4: drop, ipv6: drop }
+    rationale: >-
+      The prompt says drop SSH from everywhere else, in both families. A
+      scoped drop written with `ip saddr` alone refuses IPv4 and admits IPv6:
+      defect D, and the reason this scenario exists.
+
+  - id: echo-from-wan
+    tier: specified
+    proto: icmp-echo
+    src: wan
+    dst: dut-wan
+    expect: { ipv4: allow, ipv6: allow }
+    rationale: >-
+      Echo is accepted from anywhere, which is a statement about reachability
+      and not about one address family.
+
+  - id: echo-from-admin
+    tier: specified
+    proto: icmp-echo
+    src: admin
+    dst: dut-admin
+    expect: { ipv4: allow, ipv6: allow }
+    rationale: >-
+      Same requirement seen from the trusted side. Both interfaces answer.
+
+  - id: no-forwarding-admin-to-wan
+    tier: specified
+    proto: tcp
+    src: admin
+    dst: wan
+    dport: 80
+    expect: { ipv4: drop, ipv6: drop }
+    rationale: >-
+      The host does not forward for anyone. The lab gives each peer a default
+      route through the DUT, so this packet is routed and must die on the
+      forward hook.
+
+  - id: no-forwarding-wan-to-admin
+    tier: specified
+    proto: tcp
+    src: wan
+    dst: admin
+    dport: 22
+    expect: { ipv4: drop, ipv6: drop }
+    rationale: >-
+      The same requirement in the other direction. A default-accept ruleset
+      that adds input drops but leaves the forward hook at accept turns the
+      web server into an open router for the trusted network.
+
+  # ======================= silent ========================================
+  - id: loopback-echo
+    tier: silent
+    proto: icmp-echo
+    src: loopback
+    dst: loopback
+    expect: { ipv4: allow, ipv6: allow }
+    rationale: >-
+      Filtering the host's own stack breaks local services in ways that are
+      hard to attribute later. The prompt asks for loopback to be left alone,
+      which is what a competent implementation does without being told twice.
+
+  - id: loopback-https
+    tier: silent
+    proto: tcp
+    src: loopback
+    dst: loopback
+    dport: 443
+    expect: { ipv4: allow, ipv6: allow }
+    rationale: >-
+      The same requirement as a connection rather than a ping: a local
+      health-check or reverse proxy must still reach the listener on both
+      families.
+
+  - id: ipv6-neighbour-discovery
+    tier: silent
+    proto: icmp6-nd
+    src: admin
+    dst: dut-admin
+    expect: { ipv6: allow }
+    rationale: >-
+      Never mentioned by any policy and never optional: without neighbour
+      discovery the IPv6 link does not function at all. This is defect class
+      E, and it is why a blanket `icmpv6 drop` is not a hardening measure.
+
+# Deliberately not tested here. Declared rather than silently omitted.
+unprobed:
+  - id: unnamed-port-closure
+    reason: >-
+      This variant keeps an accepting base policy on purpose, so a port the
+      prompt never names is open by design. Testing closure here would score
+      the variant against a requirement it was not given. The default-drop
+      sibling of this family carries that probe.
+  - id: stateful-return-traffic
+    reason: >-
+      Needs a probe that inspects conntrack state, and its verdict is
+      confounded with the output chain when the host initiates the flow.
+      Scheduled for probe v2; named in threats to validity, not assumed.
+  - id: path-mtu-discovery
+    reason: >-
+      Requires an MTU below 1500 to force an ICMPv6 "packet too big". The
+      standard topology runs at 1500; this becomes a separate scenario rather
+      than a probe bolted onto this one.

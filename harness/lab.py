@@ -112,6 +112,24 @@ def up(topo):
                    f"{spec['address']}/{spec['prefix']}", "dev", dut["iface"], *extra],
                   f"address {fam} on dut/{side}")
 
+    # Kernel forwarding on the DUT. A scenario that says "this host does not
+    # forward" is only testable if the kernel would otherwise forward; with
+    # ip_forward=0 the packet dies before the forward hook and every such probe
+    # passes for the wrong reason.
+    fwd = topo.get("forwarding", {})
+    for key, val in (fwd.get("sysctls") or {}).items():
+        common.sh(["ip", "netns", "exec", fwd.get("ns", common.DUT_NS),
+                   "sysctl", "-qw", f"{key}={val}"])
+
+    # Peer routes. Without these, a peer can reach nothing but its own /24 and
+    # the cross-zone probes never become packets the DUT has to route.
+    for ns, routes in (topo.get("routes") or {}).items():
+        for fam, spec in routes.items():
+            via = common.resolve(topo, spec["via"])[fam]
+            _step(["ip", "-n", ns, "-6" if fam == "ipv6" else "-4",
+                   "route", "add", spec["to"], "via", via],
+                  f"route {ns} {fam} {spec['to']} via {via}")
+
     # IPv6 housekeeping: no router advertisements, IPv6 definitely on
     for ns in topo["namespaces"]:
         for key, val in (("accept_ra", topo.get("ipv6", {}).get("accept_ra", 0)),

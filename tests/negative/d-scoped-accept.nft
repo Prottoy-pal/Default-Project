@@ -1,0 +1,47 @@
+#!/usr/sbin/nft -f
+# tests/negative/d-scoped-accept.nft
+#
+# Defect class D, deliberately, and nothing else wrong. This is
+# bench/scenarios/02-web-server/expert.nft with exactly one line removed:
+#
+#     ip6 saddr != 2001:db8:20::/64 tcp dport 22 drop
+#
+# Everything else — HTTPS, echo, loopback, neighbour discovery, the forward
+# hook — is correct. So the oracle must report:
+#
+#     ssh-from-wan  tcp:22  ipv6  expected=drop  observed=allow
+#     defects=[D]   ipv4=pass  ipv6=fail  exit 1
+#
+# If any other probe fails, the oracle is over-constrained and the negative
+# control is telling you about a bug in the test, not in the ruleset.
+
+flush ruleset
+
+table inet filter {
+
+	chain input {
+		type filter hook input priority filter; policy accept;
+
+		iifname "lo" accept
+
+		ct state established,related accept
+		ct state invalid drop
+
+		icmpv6 type { nd-router-solicit, nd-router-advert,
+		              nd-neighbor-solicit, nd-neighbor-advert } accept
+
+		tcp dport 443 accept
+
+		ip  saddr 10.20.0.0/24     tcp dport 22 accept
+		ip6 saddr 2001:db8:20::/64 tcp dport 22 accept
+
+		icmp   type echo-request accept
+		icmpv6 type echo-request accept
+
+		ip  saddr != 10.20.0.0/24  tcp dport 22 drop
+	}
+
+	chain forward {
+		type filter hook forward priority filter; policy drop;
+	}
+}

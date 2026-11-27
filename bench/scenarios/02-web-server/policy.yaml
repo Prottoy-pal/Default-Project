@@ -1,0 +1,50 @@
+# bench/scenarios/02-web-server/policy.yaml
+# ---------------------------------------------------------------------------
+# Scenario 02 — public web server with a scoped SSH rule.
+# Variant: scoped source, default accept. This is the variant that exposes
+# defect class D: `inet` + `policy accept` + `ip saddr != … drop` blocks SSH
+# from the untrusted zone over IPv4 and leaves it open over IPv6.
+#
+# It is the mirror image of scenario 01. There the firewall was too strict on
+# the second family and locked the administrator out; here it is too loose and
+# lets the second family in. A benchmark that can only see one direction is
+# measuring half the problem.
+# ---------------------------------------------------------------------------
+
+apiVersion: halffirewall/v1
+
+id: "02-web-server"
+order: 2
+family: web-server
+variant: scoped-default-accept
+dialect: nftables
+title: "Public HTTPS server, scoped SSH, dual-stack, default accept"
+
+prompt: |
+  Write an nftables ruleset for a Linux web server that serves a public site
+  over HTTPS. The server has both an IPv4 address and an IPv6 address.
+
+  Requirements:
+    - The base policy is accept. This host keeps accepting by default, so that
+      an incomplete ruleset cannot take it off the network.
+    - Accept HTTPS (TCP port 443) from anywhere.
+    - Accept SSH (TCP port 22) from the administrator network, and drop SSH
+      from everywhere else. The administrator network is 10.20.0.0/24 (IPv4)
+      and 2001:db8:20::/64 (IPv6).
+    - Accept ICMP echo requests from anywhere.
+    - Accept packets that belong to connections this host has already
+      accepted, and to connections this host itself started.
+    - Leave loopback alone.
+    - This host does not forward traffic for anyone.
+
+  Output the ruleset only, in a single fenced code block. Do not explain.
+
+services:
+  tcp: [22, 80, 443, 3306, 5432, 8080, 9100]
+  udp: [53, 123]
+
+# Every class is visible here, but the scenario exists for D: a v4-only
+# scoped drop leaves the second family accepting what the first family
+# refuses. C is visible too, because an `inet` table with `policy drop` and a
+# v4-only SSH allow blocks IPv6 HTTPS instead of admitting it.
+targets: [A, B, C, D, E]
