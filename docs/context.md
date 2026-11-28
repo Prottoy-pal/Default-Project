@@ -295,16 +295,19 @@ which expand to 37 checks across two families, and it already states, in
 | Written plan, 14-day sprint, related work, ethics | **done** |
 | Lab topology and scenario schema | **done** |
 | **Gate A** — WSL2 lab pings across a veth pair, both families | **passed 28 Nov** |
-| `harness/*.py` (lab, apply, probe, score) | **implemented and executed**; three bugs found and fixed |
-| **Gate B** — oracle accepts the expert and rejects every known-bad config | **passed 28 Nov** · 37/37 (01), 21/21 (02), negatives `[C,E]`, `[D]`, `[D]` |
-| Scenarios 01–04 (SSH bastion, web, DB, DNS) | **written and validated** |
-| `generate/run_models.py` + C3 retrieval baseline | **written — not yet run against a model** |
-| `scripts/analyze.py` (Wilson interval) | **written — not yet run on real data** |
-| Pilot dataset | **none yet** |
+| `harness/*.py` (lab, apply, probe, score) | **implemented, executed, hardened** — six defects fixed, four of them found only by running a model |
+| **Gate B** — oracle accepts the expert and rejects every known-bad config | **passed 28 Nov** · six negative controls, each caught with its own class |
+| Scenarios 01–08 (all eight service families) | **written and validated** · experts pass 100% |
+| `generate/run_models.py` + C3 retrieval baseline | **written and executed** against `qwen2.5-coder:7b` (local Ollama) |
+| `scripts/analyze.py` (Wilson interval) | **written; runs on the pilot once it completes** |
+| Pilot dataset | **running** — 8 scenarios × {C1, C2} |
 
-No model has been prompted, so no result exists. What does exist is a lab that
-has been proven to work, and an oracle that has been proven able to fail. Those
-two facts are the ones a reviewer should check first, and both are now true.
+A model has now been prompted, and the first result was two things worth
+recording before any number: the runner works, and the instrument needed four
+repairs that only became visible under a real model's output. Those are in
+`docs/notes/pilot-01-instrument.md`. The lab that has been proven to work and
+the oracle that has been proven able to fail remain the two facts a reviewer
+should check first.
 
 ---
 
