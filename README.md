@@ -121,6 +121,7 @@ Defects **C** and **D** are the novel ones. They survive every rule-counting che
 ├── README.md                  ← you are here
 ├── docs/
 │   ├── simple-guide.md        the project in plain words — best first read
+│   ├── progress-in-plain-words.md  what has been built so far, for any reader
 │   ├── context.md             the whole project in one file — technical briefing
 │   ├── setup-wsl.md           Windows → WSL2 → Ubuntu, step by step
 │   ├── pipeline.md            every task, with time, difficulty and gates
