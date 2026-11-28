@@ -82,25 +82,50 @@ def icmp_echo(spec):
     return "drop", latency, f"ping rc={r.returncode}"
 
 
+def _neigh_lladdr(dst, iface):
+    r = subprocess.run(["ip", "-6", "neigh", "show", dst, "dev", iface],
+                       capture_output=True, text=True)
+    parts = (r.stdout or "").split()
+    if "lladdr" in parts:
+        return parts[parts.index("lladdr") + 1]
+    return None
+
+
 def icmp6_nd(spec):
-    """Neighbour discovery: ping, then read the kernel's neighbour cache.
+    """Neighbour discovery: solicit, and see whether the policy answers.
+
+    The lab pins a permanent neighbour entry for every peer so that the flow
+    probes do not depend on discovery. This probe removes its own entry first,
+    because a pinned entry would make the ping succeed whether or not the
+    policy answers the solicitation - which is the only thing it is here to
+    measure. The entry is restored in a finally block, so a failed probe cannot
+    leak into the probes that follow.
 
     resolution=ok tells score.py that this failure is not class E, and
     resolution=failed tells it that it is.
     """
-    observed, latency, detail = icmp_echo(spec)
-    neigh = subprocess.run(
-        ["ip", "-6", "neigh", "show", spec["dst"], "dev", spec.get("iface", "")],
-        capture_output=True,
-        text=True,
-    )
-    out = (neigh.stdout or "").upper()
-    resolved = any(state in out for state in ("REACHABLE", "STALE", "DELAY", "PROBE"))
-    if observed == "allow" and resolved:
-        return "allow", latency, "neighbour resolved"
-    if observed == "allow" and not resolved:
-        return "allow", latency, "reply arrived but no neighbour entry"
-    return "drop", latency, f"nd failed (neigh: {out.strip() or 'empty'})"
+    dst, iface = spec["dst"], spec.get("iface", "")
+    lladdr = _neigh_lladdr(dst, iface)
+    if lladdr:
+        subprocess.run(["ip", "-6", "neigh", "del", dst, "dev", iface],
+                       capture_output=True, text=True)
+    try:
+        observed, latency, detail = icmp_echo(spec)
+        neigh = subprocess.run(["ip", "-6", "neigh", "show", dst, "dev", iface],
+                               capture_output=True, text=True)
+        out = (neigh.stdout or "").upper()
+        resolved = any(state in out
+                       for state in ("REACHABLE", "STALE", "DELAY", "PROBE"))
+        if observed == "allow" and resolved:
+            return "allow", latency, "neighbour resolved"
+        if observed == "allow" and not resolved:
+            return "allow", latency, "reply arrived but no neighbour entry"
+        return "drop", latency, f"nd failed (neigh: {out.strip() or 'empty'})"
+    finally:
+        if lladdr:
+            subprocess.run(["ip", "-6", "neigh", "replace", dst, "lladdr", lladdr,
+                            "dev", iface, "nud", "permanent"],
+                           capture_output=True, text=True)
 
 
 HANDLERS = {

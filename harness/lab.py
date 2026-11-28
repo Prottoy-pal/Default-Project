@@ -146,6 +146,10 @@ def up(topo):
                      {d["iface"] for d in topo["dut"].values() if ns == common.DUT_NS}:
             _step(["ip", "-n", ns, "link", "set", iface, "up"], f"{iface} up in {ns}")
 
+    # Neighbour entries before the routes, so that the first probe on either
+    # link does not depend on discovery succeeding.
+    pin_neighbours(topo)
+
     # Peer routes: after the links are up, because a gateway is only
     # "reachable" while the interface that carries it is up.
     for ns, routes in (topo.get("routes") or {}).items():
@@ -157,6 +161,47 @@ def up(topo):
 
     start_sink(topo)
     time.sleep(0.3)
+
+
+def _mac(ns, iface):
+    r = common.sh(["ip", "-n", ns, "-o", "link", "show", "dev", iface])
+    parts = r.stdout.split()
+    if "link/ether" not in parts:
+        _die(f"cannot read the MAC of {iface} in {ns}: {r.stdout.strip()!r}")
+    return parts[parts.index("link/ether") + 1]
+
+
+def pin_neighbours(topo):
+    """Give every link a permanent IPv6 neighbour entry, in both directions.
+
+    Without this, a ruleset that drops ICMPv6 takes the whole second family
+    down: the link never resolves, so every IPv6 allow-probe fails and every
+    IPv6 drop-probe passes because nothing can be delivered at all. One defect
+    (E) would then be recorded as a second, independent one (C), and the run
+    would say nothing about the policy it claims to test.
+
+    Permanent entries take resolution out of the path of the flow probes. The
+    `icmp6-nd` probe deletes its own entry, solicits, and restores it, so
+    whether the policy answers discovery is still measured - just no longer
+    through every other probe.
+
+    IPv4 is left alone: ARP is not matched by an `ip`/`inet` filter table, so a
+    ruleset under test cannot break it the way it can break ICMPv6.
+    """
+    addr = {}
+    for zone in topo["zones"].values():
+        addr[(zone["ns"], zone["iface"])] = zone["ipv6"]["address"]
+    for dut in topo["dut"].values():
+        addr[(common.DUT_NS, dut["iface"])] = dut["ipv6"]["address"]
+
+    for link in topo["links"]:
+        ends = [link["a"], link["b"]]
+        for here, there in (ends, ends[::-1]):
+            target = addr[(there["ns"], there["iface"])]
+            mac = _mac(there["ns"], there["iface"])
+            _step(["ip", "-n", here["ns"], "-6", "neigh", "replace", target,
+                   "lladdr", mac, "dev", here["iface"], "nud", "permanent"],
+                  f"pin neighbour {target} in {here['ns']}/{here['iface']}")
 
 
 def status(topo):

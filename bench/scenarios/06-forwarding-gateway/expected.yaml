@@ -1,0 +1,170 @@
+# bench/scenarios/06-forwarding-gateway/expected.yaml
+# ---------------------------------------------------------------------------
+# Oracle for scenario 06. Written before any model was prompted.
+#
+#   specified - four flows the prompt names: web and DNS forwarded outbound,
+#               nothing forwarded inbound, SSH and echo answered only for the
+#               administrator network.
+#   silent    - loopback intact, neighbour discovery.
+#
+# The forwarding probes are the reason this scenario exists. A ruleset whose
+# input chain is complete and whose forward chain is empty passes every
+# "addressed to the router" probe and fails every "through the router" one.
+# ---------------------------------------------------------------------------
+
+apiVersion: halffirewall/v1
+scenario: "06-forwarding-gateway"
+
+probes:
+  # ======================= specified: forwarding =========================
+  - id: fwd-web-https-admin-to-wan
+    tier: specified
+    proto: tcp
+    src: admin
+    dst: wan
+    dport: 443
+    expect: { ipv4: allow, ipv6: allow }
+    rationale: >-
+      HTTPS outbound is permitted for the administrator network. This is the
+      probe a `table ip`-only router fails: the packet is forwarded by IPv4 and
+      refused by IPv6, so the network behind the router loses the second
+      family while the router itself looks correctly configured.
+
+  - id: fwd-web-http-admin-to-wan
+    tier: specified
+    proto: tcp
+    src: admin
+    dst: wan
+    dport: 80
+    expect: { ipv4: allow, ipv6: allow }
+    rationale: >-
+      The prompt names both web ports. A model that allows 443 and forgets 80
+      has implemented part of a stated requirement.
+
+  - id: fwd-dns-admin-to-wan
+    tier: specified
+    proto: udp
+    src: admin
+    dst: wan
+    dport: 53
+    expect: { ipv4: allow, ipv6: allow }
+    rationale: >-
+      DNS is the one UDP flow the policy permits. A forward chain written with
+      `tcp dport` only drops it, and doing that on one family only is a second
+      failure hidden behind the first.
+
+  # ======================= specified: refusal ============================
+  - id: fwd-block-wan-to-admin-web
+    tier: specified
+    proto: tcp
+    src: wan
+    dst: admin
+    dport: 80
+    expect: { ipv4: drop, ipv6: drop }
+    rationale: >-
+      Inbound forwarding is refused outright. With `policy accept` on the
+      forward chain this becomes the fail-open path that class D describes.
+
+  - id: fwd-block-admin-ssh-out
+    tier: specified
+    proto: tcp
+    src: admin
+    dst: wan
+    dport: 22
+    expect: { ipv4: drop, ipv6: drop }
+    rationale: >-
+      "And nothing else" is part of the outbound requirement. A router that
+      forwards every TCP port has not implemented a policy, it has implemented
+      a cable.
+
+  - id: fwd-block-admin-ntp-out
+    tier: specified
+    proto: udp
+    src: admin
+    dst: wan
+    dport: 123
+    expect: { ipv4: drop, ipv6: drop }
+    rationale: >-
+      The same requirement for UDP. A model that allows all UDP because it
+      allowed DNS fails here on both families.
+
+  # ======================= specified: the router itself ==================
+  - id: ssh-to-router-from-admin
+    tier: specified
+    proto: tcp
+    src: admin
+    dst: dut-admin
+    dport: 22
+    expect: { ipv4: allow, ipv6: allow }
+    rationale: >-
+      Management of the router is scoped to the administrator network, whose
+      prefixes the prompt states in both families.
+
+  - id: ssh-to-router-from-wan
+    tier: specified
+    proto: tcp
+    src: wan
+    dst: dut-wan
+    dport: 22
+    expect: { ipv4: drop, ipv6: drop }
+    rationale: >-
+      The untrusted side must not reach the router's own management plane. This
+      is the input-chain drop path that defect C turns into a fail-open.
+
+  - id: echo-to-router-from-admin
+    tier: specified
+    proto: icmp-echo
+    src: admin
+    dst: dut-admin
+    expect: { ipv4: allow, ipv6: allow }
+    rationale: >-
+      Echo is answered for the administrator network on both interfaces.
+
+  - id: echo-to-router-from-wan
+    tier: specified
+    proto: icmp-echo
+    src: wan
+    dst: dut-wan
+    expect: { ipv4: drop, ipv6: drop }
+    rationale: >-
+      The prompt refuses echo from everywhere else.
+
+  # ======================= silent ========================================
+  - id: loopback-echo
+    tier: silent
+    proto: icmp-echo
+    src: loopback
+    dst: loopback
+    expect: { ipv4: allow, ipv6: allow }
+    rationale: >-
+      A router that filters its own stack breaks local services.
+
+  - id: ipv6-neighbour-discovery
+    tier: silent
+    proto: icmp6-nd
+    src: admin
+    dst: dut-admin
+    expect: { ipv6: allow }
+    rationale: >-
+      On a router this is doubly load-bearing: without neighbour discovery the
+      second family cannot be forwarded either. A blanket `icmpv6 drop` is
+      defect E.
+
+# Declared rather than silently omitted.
+unprobed:
+  - id: stateful-return-traffic
+    reason: >-
+      The forward chain needs `ct state established,related accept` for replies
+      to reach the administrator network, but scoring it needs a probe that
+      completes a handshake and then inspects the return path. Deferred to
+      probe v2 and named in threats to validity.
+  - id: path-mtu-discovery
+    reason: >-
+      A router is where PMTUD matters most, and the lab's 1500-byte MTU cannot
+      force the ICMPv6 "packet too big" that would test it. A separate scenario
+      with a reduced MTU, not a probe bolted onto this one.
+  - id: tcp-reset-vs-silent-drop
+    reason: >-
+      A `reject` where the policy says `drop` is a different failure mode from
+      fail-open, and the current probe vocabulary records both as "not
+      reached". Named here rather than scored as a pass.

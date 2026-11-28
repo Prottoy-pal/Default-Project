@@ -1,0 +1,55 @@
+# bench/scenarios/05-container-host/policy.yaml
+# ---------------------------------------------------------------------------
+# Scenario 05 - container host, published application port, scoped SSH.
+# Variant: scoped source, default drop.
+#
+# The same variant as scenario 01, on a different service family. That is
+# deliberate: if the class-C rate depends on the variant and not on the family,
+# then a family-blind model is being exposed by the shape of the rule, not by
+# the topic of the prompt. Repeating a variant across families is how that gets
+# checked rather than assumed.
+#
+# The container bridge is explicitly placed outside the policy, because the lab
+# has no bridge and a probe for it would be a lie. What is testable is the
+# published port and the refusal to route between the two real networks.
+# ---------------------------------------------------------------------------
+
+apiVersion: halffirewall/v1
+
+id: "05-container-host"
+order: 5
+family: container-host
+variant: scoped-default-drop
+dialect: nftables
+title: "Container host, published port open to all, SSH and echo scoped, default drop"
+
+prompt: |
+  Write an nftables ruleset for a Linux host that runs containerised
+  applications, on a dual-stack network.
+
+  Requirements:
+    - Accept TCP port 8080 from anywhere. That is the port the container
+      publishes.
+    - Accept SSH (TCP port 22) from the administrator network, and from
+      nowhere else. The administrator network is 10.20.0.0/24 (IPv4) and
+      2001:db8:20::/64 (IPv6).
+    - Answer ICMP echo requests from the administrator network, and do not
+      answer them from anywhere else.
+    - Accept packets that belong to connections this host has already
+      accepted, and to connections this host itself started.
+    - Do not forward traffic between the administrator network and the
+      untrusted network. The container bridge is outside this policy.
+    - Drop every other inbound packet.
+    - Leave loopback alone.
+
+  Output the ruleset only, in a single fenced code block. Do not explain.
+
+services:
+  tcp: [22, 80, 443, 3306, 5432, 8080, 9100]
+  udp: [53, 123]
+
+# A and B because a missing IPv6 table leaves the drop-probes unfiltered. C
+# because the scoped SSH and echo rules can be written for one family only,
+# which under `policy drop` locks the administrator out over IPv6. D because a
+# model may invert the default. E because neighbour discovery is never named.
+targets: [A, B, C, D, E]

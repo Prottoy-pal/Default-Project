@@ -58,8 +58,11 @@ These are not defaults. Breaking one invalidates the row.
 2. **`flush ruleset` is not injected on the model's behalf.** If a generated
    configuration appends rules to whatever was already loaded, that is part of
    what is being measured.
-3. **Load failure is failure on both families.** A ruleset that will not
-   apply protects nothing. Record the stderr verbatim.
+3. **A load failure is not a behavioural class.** A ruleset that will not
+   apply protects nothing, so it is recorded as `defects: ["S"]` with
+   `load_failure: true` and `verdicts: not-loaded` on both families. Folding it
+   into A–E would report "does not compile" as "fails on IPv6". The stderr is
+   kept verbatim.
 4. **No packet leaves the machine.** All three namespaces are local; there is
    no bridge and no default route out.
 5. **A timeout is a drop, never an error.** Probe results are `allow`,
@@ -76,20 +79,30 @@ These are not defaults. Breaking one invalidates the row.
 | `tcp` | SYN to `dport`, bound to the source address | handshake completes |
 | `udp` | datagram to `dport` | any reply arrives within the timeout |
 | `icmp-echo` | echo request | echo reply arrives |
-| `icmp6-nd` | ping to the destination, then inspect the neighbour cache | the neighbour entry is `REACHABLE` or `STALE` |
+| `icmp6-nd` | ping after removing the peer's pinned neighbour entry | the entry comes back `REACHABLE` |
+
+`lab.py` pins a permanent neighbour entry for every peer on every link. That
+is what stops a ruleset which drops ICMPv6 from taking the second family down
+for every probe at once — a dead link fails allow-probes and passes drop-probes
+vacuously, so one defect would be scored as two. The `icmp6-nd` probe removes
+its own entry before pinging and restores it afterwards, so whether the policy
+answers discovery is still measured, and measured on its own.
 
 A probe is scored `fail` when `observed != expected` for that family. The row
 keeps `expected` and `observed` side by side, so a wrong oracle is visible in
 the data rather than hidden in an aggregate.
 
-Defect classification reads the failure pattern, not the file text:
+Defect classification reads the failure pattern, not the file text — except for
+A and B, which execution cannot separate from D:
 
 | Pattern | Class |
 |---|---|
-| every IPv6 probe fails, `resolution: failed` | **A** or **B** — nothing filters v6, or nothing routes it |
+| no IPv6 table at all (`table ip` only) | **A** |
+| split `ip`/`ip6` tables whose v6 chain filters nothing | **B** |
 | v6 allow-probes fail, v6 drop-probes pass | **C** — over-block |
 | v6 allow-probes pass, v6 drop-probes fail | **D** — fail-open |
-| small v6 packets pass, ND or large ones fail | **E** — ICMPv6 mishandled |
+| the `icmp6-nd` probe gets no advertisement | **E** — ICMPv6 mishandled |
+| the ruleset did not load | **S** — not a class; excluded from A–E |
 
 The static heuristics (`has_inet`, `has_ip6_table`, `rule_count`,
 `family_scoped_matches`) are recorded **alongside** the execution verdict and

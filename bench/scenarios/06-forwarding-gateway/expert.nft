@@ -1,0 +1,58 @@
+#!/usr/sbin/nft -f
+# ---------------------------------------------------------------------------
+# bench/scenarios/06-forwarding-gateway/expert.nft
+#
+# Hand-written reference for scenario 06: a dual-stack router that forwards
+# web and DNS outbound, forwards nothing inbound, and answers only the
+# administrator network on its own interfaces.
+#
+# GATE: must pass 100% of expected.yaml - 12 probes, 23 packets - before any
+# model is prompted.
+#
+# The shape to notice: the forward chain is a separate policy with its own
+# default, and every allow in it is written twice, once per family. A ruleset
+# that gets the input chain perfectly right and leaves the forward chain at
+# `policy accept` is the defect this scenario is built to catch.
+# ---------------------------------------------------------------------------
+
+flush ruleset
+
+table inet filter {
+
+	chain input {
+		type filter hook input priority filter; policy drop;
+
+		iifname "lo" accept
+
+		ct state established,related accept
+		ct state invalid drop
+
+		icmpv6 type { nd-router-solicit, nd-router-advert,
+		              nd-neighbor-solicit, nd-neighbor-advert } accept
+
+		# --- management of the router itself, both families -------------
+		ip  saddr 10.20.0.0/24     tcp dport 22 accept
+		ip6 saddr 2001:db8:20::/64 tcp dport 22 accept
+
+		ip  saddr 10.20.0.0/24     icmp   type echo-request accept
+		ip6 saddr 2001:db8:20::/64 icmpv6 type echo-request accept
+	}
+
+	chain forward {
+		type filter hook forward priority filter; policy drop;
+
+		ct state established,related accept
+		ct state invalid drop
+
+		# --- what the administrator network may send outward ------------
+		ip  saddr 10.20.0.0/24     tcp dport { 80, 443 } accept
+		ip6 saddr 2001:db8:20::/64 tcp dport { 80, 443 } accept
+
+		ip  saddr 10.20.0.0/24     udp dport 53 accept
+		ip6 saddr 2001:db8:20::/64 udp dport 53 accept
+
+		# Everything else, in either direction, falls through to
+		# `policy drop`: no inbound forwarding, and no outbound port
+		# that the policy did not name.
+	}
+}

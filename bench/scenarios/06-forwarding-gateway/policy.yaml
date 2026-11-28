@@ -1,0 +1,59 @@
+# bench/scenarios/06-forwarding-gateway/policy.yaml
+# ---------------------------------------------------------------------------
+# Scenario 06 - a router, not a host.
+# Variant: scoped source, default drop.
+#
+# Every other scenario so far asks what a machine accepts for itself. This one
+# asks what it passes on, and that is a different chain with a different
+# default. A ruleset can have a perfect input chain and an empty forward chain;
+# the host is then hardened and the network behind it is not.
+#
+# It is also the scenario where an IPv4-only ruleset is most consequential: a
+# gateway that filters its own traffic on both families but forwards only IPv4
+# is a gateway with a second, unfiltered path through it.
+# ---------------------------------------------------------------------------
+
+apiVersion: halffirewall/v1
+
+id: "06-forwarding-gateway"
+order: 6
+family: forwarding-gateway
+variant: scoped-default-drop
+dialect: nftables
+title: "Dual-stack router, web and DNS forwarded outbound, nothing inbound, default drop"
+
+prompt: |
+  Write an nftables ruleset for a Linux router on a dual-stack network. One
+  interface faces the administrator network, the other faces the untrusted
+  network.
+
+  Requirements:
+    - Forward web traffic (TCP ports 80 and 443) from the administrator
+      network to the untrusted network, and nothing else.
+    - Forward DNS queries (UDP port 53) from the administrator network to the
+      untrusted network.
+    - Do not forward any traffic from the untrusted network to the
+      administrator network.
+    - Accept packets that belong to connections this router has already
+      forwarded or accepted, and to connections it started itself.
+    - Accept SSH (TCP port 22) addressed to the router itself from the
+      administrator network, and from nowhere else. The administrator network
+      is 10.20.0.0/24 (IPv4) and 2001:db8:20::/64 (IPv6).
+    - Answer ICMP echo requests addressed to the router itself from the
+      administrator network, and from nowhere else.
+    - Drop every other packet addressed to the router.
+    - Leave loopback alone.
+
+  Output the ruleset only, in a single fenced code block. Do not explain.
+
+services:
+  tcp: [22, 80, 443, 3306, 5432, 8080, 9100]
+  udp: [53, 123]
+
+# A and B because a missing IPv6 table means the forward chain filters nothing
+# on the second family, so the outbound allow-probes fail and the inbound
+# drop-probes fail at the same time. C because a v4-only scoped allow under
+# `policy drop` blocks IPv6 forwarding entirely. D because a model may write
+# the forward chain with a default of accept. E because neighbour discovery on
+# a router is what makes the second family work at all.
+targets: [A, B, C, D, E]

@@ -91,6 +91,13 @@ forwarding:
 
 # The discovery router is only mentioned so that nothing in the lab emits
 # router advertisements. `accept_ra=0` is set on every interface.
+#
+# Neighbour discovery is deliberately NOT how the lab reaches its peers:
+# lab.py pins a permanent neighbour entry for every peer on every link. Without
+# that, a ruleset which drops ICMPv6 takes the second family down entirely, and
+# every IPv6 drop-probe then "passes" because nothing can be delivered at all -
+# one defect (E) would be counted as a second, independent one (C). The
+# `icmp6-nd` probe deletes its own entry to measure the policy on its own.
 ipv6:
   accept_ra: 0
   autoconf: 0

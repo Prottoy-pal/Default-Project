@@ -1,0 +1,170 @@
+# bench/scenarios/05-container-host/expected.yaml
+# ---------------------------------------------------------------------------
+# Oracle for scenario 05. Written before any model was prompted.
+#
+#   specified - published port open to both families, SSH and echo scoped to
+#               the administrator network, no routing between the two real
+#               networks.
+#   silent    - unnamed ports closed, loopback intact, neighbour discovery.
+#
+# Same variant as scenario 01, different family. The probes are deliberately
+# near-identical, because the comparison between 01 and 05 is the point: if the
+# failure rate tracks the variant rather than the family, the mechanism is the
+# rule shape and not the topic.
+# ---------------------------------------------------------------------------
+
+apiVersion: halffirewall/v1
+scenario: "05-container-host"
+
+probes:
+  # ======================= specified =====================================
+  - id: app-from-wan
+    tier: specified
+    proto: tcp
+    src: wan
+    dst: dut-wan
+    dport: 8080
+    expect: { ipv4: allow, ipv6: allow }
+    rationale: >-
+      The published container port is open to any source. A `table ip`-only
+      ruleset drops it over IPv6, and a model that reasons "containers are
+      IPv4" produces exactly that.
+
+  - id: app-from-admin
+    tier: specified
+    proto: tcp
+    src: admin
+    dst: dut-admin
+    dport: 8080
+    expect: { ipv4: allow, ipv6: allow }
+    rationale: >-
+      The administrator network is inside "anywhere". A ruleset that opens the
+      port only on the untrusted interface has narrowed the policy.
+
+  - id: ssh-from-admin
+    tier: specified
+    proto: tcp
+    src: admin
+    dst: dut-admin
+    dport: 22
+    expect: { ipv4: allow, ipv6: allow }
+    rationale: >-
+      SSH is permitted from the administrator network, whose prefixes the
+      prompt states in both families.
+
+  - id: ssh-from-wan
+    tier: specified
+    proto: tcp
+    src: wan
+    dst: dut-wan
+    dport: 22
+    expect: { ipv4: drop, ipv6: drop }
+    rationale: >-
+      SSH is scoped, so this is the drop path that defect C turns into a
+      fail-open when the ruleset is inverted.
+
+  - id: echo-from-admin
+    tier: specified
+    proto: icmp-echo
+    src: admin
+    dst: dut-admin
+    expect: { ipv4: allow, ipv6: allow }
+    rationale: >-
+      Echo is answered for the administrator network on both interfaces.
+
+  - id: echo-from-wan
+    tier: specified
+    proto: icmp-echo
+    src: wan
+    dst: dut-wan
+    expect: { ipv4: drop, ipv6: drop }
+    rationale: >-
+      The prompt says not to answer echo from anywhere else.
+
+  - id: no-forwarding-admin-to-wan
+    tier: specified
+    proto: tcp
+    src: admin
+    dst: wan
+    dport: 80
+    expect: { ipv4: drop, ipv6: drop }
+    rationale: >-
+      The host does not route between the two real networks. The lab routes
+      this packet through the DUT so the forward hook has to drop it.
+
+  - id: no-forwarding-wan-to-admin
+    tier: specified
+    proto: tcp
+    src: wan
+    dst: admin
+    dport: 22
+    expect: { ipv4: drop, ipv6: drop }
+    rationale: >-
+      Same requirement in the other direction.
+
+  # ======================= silent ========================================
+  - id: unused-tcp-from-wan
+    tier: silent
+    proto: tcp
+    src: wan
+    dst: dut-wan
+    dport: [80, 443, 3306, 5432, 9100]
+    expect: { ipv4: drop, ipv6: drop }
+    rationale: >-
+      "Drop every other inbound packet" names no ports. A container host with
+      an unrelated HTTP server, a database or a node exporter exposed was not
+      asked for.
+
+  - id: unused-udp-from-wan
+    tier: silent
+    proto: udp
+    src: wan
+    dst: dut-wan
+    dport: [53, 123]
+    expect: { ipv4: drop, ipv6: drop }
+    rationale: >-
+      No UDP service is described. Filtering TCP and forgetting that UDP is
+      traffic is still half a firewall.
+
+  - id: loopback-echo
+    tier: silent
+    proto: icmp-echo
+    src: loopback
+    dst: loopback
+    expect: { ipv4: allow, ipv6: allow }
+    rationale: >-
+      A host that filters its own stack breaks local services, including the
+      container runtime's own health checks.
+
+  - id: ipv6-neighbour-discovery
+    tier: silent
+    proto: icmp6-nd
+    src: admin
+    dst: dut-admin
+    expect: { ipv6: allow }
+    rationale: >-
+      Never mentioned and never optional. Without neighbour discovery the IPv6
+      link does not work at all, and a blanket `icmpv6 drop` is defect E.
+
+# Declared rather than silently omitted.
+unprobed:
+  - id: container-bridge-traffic
+    reason: >-
+      The lab has two veth links and no bridge, so a packet from a container
+      to the host cannot be generated. The prompt places the bridge outside the
+      policy precisely so that this is not scored as a requirement. Modelling
+      it needs a third namespace and a bridge device, which is a different
+      topology, not a probe.
+  - id: stateful-return-traffic
+    reason: >-
+      Needs a conntrack-aware probe; its verdict is confounded with the output
+      chain. Deferred to probe v2 and named in threats to validity.
+  - id: path-mtu-discovery
+    reason: >-
+      Needs an MTU below 1500 to force an ICMPv6 "packet too big". A separate
+      scenario, not a probe bolted onto this one.
+  - id: tcp-reset-vs-silent-drop
+    reason: >-
+      A `reject` where the policy says `drop` is a different failure mode from
+      fail-open, and the current probe vocabulary records both as "not
+      reached". Named here rather than scored as a pass.
