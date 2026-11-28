@@ -52,12 +52,23 @@ def udp(spec):
     s.settimeout(timeout)
     try:
         s.bind((spec["src"], 0))
-        s.sendto(b"hf", (spec["dst"], spec["port"]))
+        try:
+            s.sendto(b"hf", (spec["dst"], spec["port"]))
+        except OSError:
+            return "drop", int((time.monotonic() - start) * 1000), "send failed"
         try:
             s.recvfrom(2048)
             return "allow", int((time.monotonic() - start) * 1000), "reply received"
         except socket.timeout:
             return "drop", int((time.monotonic() - start) * 1000), "no reply"
+        except ConnectionRefusedError:
+            # An ICMP port-unreachable came back. The datagram arrived and the
+            # host said nothing is listening, which is the same evidence as a
+            # TCP RST: the firewall let it through. Recording this as `error`
+            # would fail a forwarding allow-probe against a peer that simply
+            # has no listener, and the verdict would be about the lab, not the
+            # ruleset.
+            return "allow", int((time.monotonic() - start) * 1000), "icmp port unreachable"
     finally:
         s.close()
 

@@ -90,7 +90,9 @@ def run_all(topo, probes):
                 "port": port,
                 "expected": probe["expect"][family],
                 "observed": result["observed"],
-                "verdict": "pass" if result["observed"] == probe["expect"][family] else "fail",
+                "verdict": ("error" if result["observed"] == "error"
+                            else "pass" if result["observed"] == probe["expect"][family]
+                            else "fail"),
                 "resolution": result.get("resolution", "n/a"),
                 "latency_ms": result.get("latency_ms", 0),
                 "detail": result.get("detail", ""),

@@ -249,6 +249,19 @@ def main():
 
     heur = heuristics(text)
     loaded = applied["loaded"]
+
+    # An `error` means the probe itself could not run - a missing binary, a
+    # socket the namespace refused, a helper that crashed. It is not evidence
+    # about the ruleset, so it must not be counted as a pass or a failure. The
+    # contract in harness/README.md is that it fails the run; the row is not
+    # written, and the cell is retried rather than recorded.
+    errors = [r for r in rows if r["verdict"] == "error"]
+    if errors:
+        for r in errors[:5]:
+            print(f"  probe error: {r['id']} {r['family']} - {r['detail']}",
+                  file=sys.stderr)
+        _die(f"{len(errors)} probe(s) could not be executed; no row written")
+
     verdicts = summarise(rows, loaded)
     defects = classify(rows, heur, loaded)
 

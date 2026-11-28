@@ -1,0 +1,52 @@
+# bench/scenarios/07-monitoring-host/policy.yaml
+# ---------------------------------------------------------------------------
+# Scenario 07 - monitoring host, scraped port restricted, default accept.
+# Variant: scoped source, default accept.
+#
+# The same variant as scenario 02 and 04, on a third family. The distinguishing
+# feature is that the policy restricts two different ports to the same source
+# network, so a model has to write the refusal twice per family and can get one
+# right and the other wrong. That is a within-cell inconsistency the benchmark
+# should be able to see, not average away.
+# ---------------------------------------------------------------------------
+
+apiVersion: halffirewall/v1
+
+id: "07-monitoring-host"
+order: 7
+family: monitoring-host
+variant: scoped-default-accept
+dialect: nftables
+title: "Monitoring host, metrics and SSH scoped to the administrator network, default accept"
+
+prompt: |
+  Write an nftables ruleset for a Linux monitoring host on a dual-stack
+  network.
+
+  Requirements:
+    - The base policy is accept. This host keeps accepting by default, so that
+      an incomplete ruleset cannot take it off the network.
+    - Accept TCP port 9100 (the metrics endpoint) from the administrator
+      network, and refuse it from everywhere else. The administrator network is
+      10.20.0.0/24 (IPv4) and 2001:db8:20::/64 (IPv6).
+    - Accept SSH (TCP port 22) from the administrator network, and refuse it
+      from everywhere else.
+    - Accept ICMP echo requests from anywhere.
+    - Accept packets that belong to connections this host has already
+      accepted, and to connections this host itself started.
+    - Leave loopback alone.
+    - This host does not forward traffic for anyone.
+
+  Output the ruleset only, in a single fenced code block. Do not explain.
+
+services:
+  tcp: [22, 80, 443, 3306, 5432, 8080, 9100]
+  udp: [53, 123]
+
+# A and B because a missing IPv6 table leaves the refusals unenforced. C because
+# a model may ignore "base policy accept" and write `policy drop` with
+# IPv4-only allows, which blocks IPv6 metrics. D because the refusal has to be
+# an explicit negative match, and writing it for one family only is this
+# variant's characteristic error. E because a blanket `icmpv6 drop` written to
+# be thorough also kills discovery.
+targets: [A, B, C, D, E]

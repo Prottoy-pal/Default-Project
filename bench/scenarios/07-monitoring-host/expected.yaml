@@ -1,0 +1,155 @@
+# bench/scenarios/07-monitoring-host/expected.yaml
+# ---------------------------------------------------------------------------
+# Oracle for scenario 07. Written before any model was prompted.
+#
+#   specified - metrics and SSH scoped to the administrator network, echo from
+#               anywhere, no forwarding.
+#   silent    - loopback intact on both a control protocol and the service
+#               port, neighbour discovery.
+#
+# "Unnamed ports closed" is absent for the same reason as scenario 04: the
+# stated base policy is accept, so an unnamed port is open by design.
+# ---------------------------------------------------------------------------
+
+apiVersion: halffirewall/v1
+scenario: "07-monitoring-host"
+
+probes:
+  # ======================= specified =====================================
+  - id: metrics-from-admin
+    tier: specified
+    proto: tcp
+    src: admin
+    dst: dut-admin
+    dport: 9100
+    expect: { ipv4: allow, ipv6: allow }
+    rationale: >-
+      The administrator network is the only source the metrics endpoint
+      accepts, and it is stated in both families.
+
+  - id: metrics-from-wan
+    tier: specified
+    proto: tcp
+    src: wan
+    dst: dut-wan
+    dport: 9100
+    expect: { ipv4: drop, ipv6: drop }
+    rationale: >-
+      With `policy accept`, refusing this requires an explicit negative match.
+      A v4-only match is the canonical D shape, and a metrics endpoint exposed
+      to the untrusted network leaks host inventory.
+
+  - id: ssh-from-admin
+    tier: specified
+    proto: tcp
+    src: admin
+    dst: dut-admin
+    dport: 22
+    expect: { ipv4: allow, ipv6: allow }
+    rationale: >-
+      SSH is permitted from the administrator network, whose prefixes the
+      prompt states in both families.
+
+  - id: ssh-from-wan
+    tier: specified
+    proto: tcp
+    src: wan
+    dst: dut-wan
+    dport: 22
+    expect: { ipv4: drop, ipv6: drop }
+    rationale: >-
+      The second scoped port. A model that writes the refusal for 9100 and not
+      for 22 has followed the instruction once and not twice.
+
+  - id: echo-from-wan
+    tier: specified
+    proto: icmp-echo
+    src: wan
+    dst: dut-wan
+    expect: { ipv4: allow, ipv6: allow }
+    rationale: >-
+      Echo is explicitly permitted from anywhere here, unlike the scoped
+      scenarios. A model that applies the scoping reflex to echo as well has
+      over-blocked a stated requirement.
+
+  - id: echo-from-admin
+    tier: specified
+    proto: icmp-echo
+    src: admin
+    dst: dut-admin
+    expect: { ipv4: allow, ipv6: allow }
+    rationale: >-
+      Same requirement from the trusted side.
+
+  - id: no-forwarding-admin-to-wan
+    tier: specified
+    proto: tcp
+    src: admin
+    dst: wan
+    dport: 80
+    expect: { ipv4: drop, ipv6: drop }
+    rationale: >-
+      The host does not forward. The lab routes this packet through the DUT so
+      the forward hook has to drop it.
+
+  - id: no-forwarding-wan-to-admin
+    tier: specified
+    proto: tcp
+    src: wan
+    dst: admin
+    dport: 22
+    expect: { ipv4: drop, ipv6: drop }
+    rationale: >-
+      Same requirement in the other direction.
+
+  # ======================= silent ========================================
+  - id: loopback-echo
+    tier: silent
+    proto: icmp-echo
+    src: loopback
+    dst: loopback
+    expect: { ipv4: allow, ipv6: allow }
+    rationale: >-
+      A host that filters its own stack breaks local services.
+
+  - id: loopback-metrics
+    tier: silent
+    proto: tcp
+    src: loopback
+    dst: loopback
+    dport: 9100
+    expect: { ipv4: allow, ipv6: allow }
+    rationale: >-
+      A local scrape or health check must still reach the endpoint. This is
+      where a scoped rule written without a loopback exception fails, and it
+      fails quietly: the remote scrape keeps working.
+
+  - id: ipv6-neighbour-discovery
+    tier: silent
+    proto: icmp6-nd
+    src: admin
+    dst: dut-admin
+    expect: { ipv6: allow }
+    rationale: >-
+      Never mentioned and never optional. A blanket `icmpv6 drop` written to
+      satisfy a scoping instinct is defect E.
+
+# Declared rather than silently omitted.
+unprobed:
+  - id: unnamed-port-closure
+    reason: >-
+      Not applicable to this variant. The prompt says the base policy is
+      accept, so a port nobody named is open by design.
+  - id: stateful-return-traffic
+    reason: >-
+      Needs a conntrack-aware probe; its verdict is confounded with the output
+      chain. Deferred to probe v2 and named in threats to validity.
+  - id: path-mtu-discovery
+    reason: >-
+      Needs an MTU below 1500 to force an ICMPv6 "packet too big". A separate
+      scenario, not a probe bolted onto this one.
+  - id: tcp-reset-vs-silent-drop
+    reason: >-
+      A `reject` where the policy says `drop` is a different failure mode from
+      fail-open, and the current probe vocabulary records both as "not
+      reached". Named here rather than scored as a pass.

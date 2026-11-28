@@ -77,7 +77,7 @@ These are not defaults. Breaking one invalidates the row.
 | Probe type | Sends | Reads as `allow` when |
 |---|---|---|
 | `tcp` | SYN to `dport`, bound to the source address | handshake completes |
-| `udp` | datagram to `dport` | any reply arrives within the timeout |
+| `udp` | datagram to `dport` | any reply, or an ICMP port-unreachable, arrives within the timeout |
 | `icmp-echo` | echo request | echo reply arrives |
 | `icmp6-nd` | ping after removing the peer's pinned neighbour entry | the entry comes back `REACHABLE` |
 
