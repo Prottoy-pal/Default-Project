@@ -66,17 +66,38 @@ failed to load first, so no behaviour was observed and they are class S. A
 benchmark that folded S into the behavioural classes would have reported a
 phantom C/D prevalence; this one does not.
 
+### 4. C4 repair made it worse
+
+Because syntax failure dominates, the natural test is C4: feed the error back
+and ask for a correction. The result was unambiguous, and negative.
+
+| Condition | Loaded after | What the repair did |
+|---|---|---|
+| C1 (no repair) | 1 / 8 | — |
+| C4 (one repair round) | 0 / 8 | broke the one loadable ruleset, fixed none of the seven syntax errors |
+
+In seven cells the model re-emitted the **same** `\;` after being shown the
+exact parse error, and in the one cell that had loaded (scenario 03), it was
+asked to fix the missing neighbour discovery and instead produced a new error —
+"Could not parse ICMPv6 type expression" — turning a working-but-incomplete
+ruleset into a broken one.
+
+This is a finding about the model, not a reason to drop C4: a 7B model that
+cannot self-correct its own lexer errors cannot be repaired by pointing at
+them. The intervention may still matter for a stronger model whose first
+attempt loads and fails behaviourally — which is the case the intervention was
+originally designed for.
+
 ## What this means for the design
 
 - **S must stay its own column.** The literature reports near-perfect syntax
   for frontier models; a local 7B model sits at the opposite end. The two are
   different findings and must not be averaged.
-- **C4 (repair) is the natural next step.** The one intervention that directly
-  targets the dominant failure is to feed the nftables error back and ask for a
-  correction. That is exactly what C4 does, and this pilot is the motivation
-  for running it.
-- **The other model slots matter.** C and D are invisible when nothing loads.
-  A stronger model (or a repaired first pass) is what will let them surface.
+- **Repair cannot rescue a model that cannot parse.** C4's value is conditional
+  on the first attempt loading; with this model it never gets a chance.
+- **The other model slots matter more than the intervention.** C and D are
+  invisible when nothing loads, and repair does not unblock that. A stronger
+  model is the lever.
 
 ## Limitations
 
@@ -89,7 +110,9 @@ phantom C/D prevalence; this one does not.
 
 ## Next steps
 
-1. Run C4 (repair) over the same cells and measure how many S become loadable,
-   and whether E, C or D then surface.
-2. Add the second and third model slots.
-3. Reach the full matrix (12 scenarios × conditions × repeats) for Gate D.
+1. Add the second and third model slots. The pilot says the lever is model
+   strength, not prompting or repair.
+2. Reach the full matrix (12 scenarios × conditions × repeats) for Gate D once
+   a model that loads reliably is in place.
+3. Keep C4 for the case it was built for: a model whose first attempt loads and
+   fails behaviourally.
