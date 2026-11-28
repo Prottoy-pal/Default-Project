@@ -51,7 +51,7 @@ flowchart TD
     B2["T1.2 apply.py · load ruleset, capture stderr"]
     B3["T1.3 probe.py · tcp, udp, icmp, ND"]
     B4["T1.4 score.py · verdicts, defect classes"]
-    B5["T1.5 run.sh · expert gate must print PASS 11/11"]
+    B5["T1.5 run.sh · expert gate must pass every probe"]
     B6["T1.6 negative controls · defect C and defect D"]
     B1 --> B2 --> B3 --> B4 --> B5 --> B6
   end
@@ -195,7 +195,7 @@ phase implements it.
 | **T1.3** | `probe.py`: TCP connect, UDP datagram, ICMP echo, ICMPv6 ND — each **bound to the zone's source address**; classify `allow`/`drop`/`error` | Probe result list | 6 h | **4** | T1.1 | Binding source is the fiddly part; ND must be read from the neighbour cache, not from ping's exit code |
 | **T1.4** | `score.py`: compare probes against `expected.yaml`, emit per-family and per-tier verdicts, classify A–E, emit the JSON row from the schema | `results/*.json` | 4 h | **3** | T1.3 | Classifier can mis-attribute E as C; needs the `resolution` field |
 | **T1.5** | `run.sh`: orchestrate reset → apply → probe → score for one scenario | One command that prints the verdict | 2 h | **2** | T1.4 | Exit codes must separate `1 = model failed` from `2 = harness failed` |
-| **T1.6** | `tests/negative/`: hand-write one defect-C config and one defect-D config; prove the harness flags both, and that the expert still passes 11/11 | **Gate B** | 2 h | **3** | T1.5 | If the broken configs pass, the oracle is measuring nothing |
+| **T1.6** | `tests/negative/`: hand-write one defect-C config and one defect-D config; prove the harness flags both, and that the expert still passes 37/37 checks | **Gate B** | 2 h | **3** | T1.5 | If the broken configs pass, the oracle is measuring nothing |
 
 **Phase total: 20 h.** This is the hardest engineering block and the one most
 likely to overrun. Reserve the weekend for it.
@@ -291,7 +291,7 @@ hours, not the end of a tired evening.
 | Gate | Name | Passes only when | If it fails |
 |---|---|---|---|
 | **A** | Lab works | `check-env.sh --live` pings `10.20.0.1` and `2001:db8:20::1` from `cli_admin` | Stop. Nothing is measurable. |
-| **B** | Oracle can fail | Expert passes 11/11 **and** both negative controls are flagged | The oracle is untested; fix before authoring more scenarios |
+| **B** | Oracle can fail | Expert passes 37/37 checks **and** every negative control is flagged with the right class | The oracle is untested; fix before authoring more scenarios |
 | **C** | Benchmark validated | 12 scenarios, each expert at 100%, schema frozen | Ship 6; say so in the report |
 | **D** | Pilot data exists | ≥6 scenarios × 3 models × C1 × 3 repeats as JSON | Cut to 4 scenarios; keep 3 models and 3 repeats |
 | **E** | Analysis reproduces | A clean clone regenerates the summary CSV and both figures with two commands | Numbers are not yet a result |

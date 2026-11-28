@@ -259,7 +259,7 @@ bench/
   topology.yaml               3 namespaces, 2 veth pairs, all addresses
   scenarios/README.md         scenario schema + six authoring rules
   scenarios/_template/        policy.yaml · expected.yaml · expert.nft  (skeleton)
-  scenarios/01-ssh-bastion/   first real scenario, 11 probes × 2 families
+  scenarios/01-ssh-bastion/   first real scenario, 37 executed checks
 harness/
   README.md                   apply/probe/score contract + JSON row schema
 generate/
@@ -279,9 +279,9 @@ scripts/
 | `expert.nft` | hand-written reference that must pass 100% | before any model runs |
 
 Scenario 01 is a dual-stack SSH bastion with a scoped administrator network and
-`policy drop` — the variant that exposes defect **C**. It has 11 probes across
-two families and already declares, in `unprobed`, the two flows it does not test
-and why.
+`policy drop` — the variant that exposes defect **C**. It declares 11 probes
+which expand to 37 checks across two families, and it already states, in
+`unprobed`, the two flows it does not test and why.
 
 ---
 
@@ -293,16 +293,17 @@ and why.
 | Closest prior work read in full (SBRC 2026) | **done** |
 | Written plan, 14-day sprint, related work, ethics | **done** |
 | Lab topology and scenario schema | **done** |
-| Scenario 01 + template + oracle + expert config | **done** (not yet executed) |
-| `harness/*.py` (lab, apply, probe, score) | **written** — 5 modules + 2 helpers; not yet executed on Linux |
-| `tests/negative/` defect C and D controls | **written** — expected to fail scenario 01 |
-| `generate/*.py` (model runner, RAG) | **specified only — 0 lines written** |
-| WSL2 / Linux lab | **not installed — hard blocker** |
-| Pilot dataset | none yet |
+| **Gate A** — WSL2 lab pings across a veth pair, both families | **passed 28 Nov** |
+| `harness/*.py` (lab, apply, probe, score) | **implemented and executed**; three bugs found and fixed |
+| **Gate B** — oracle accepts the expert and rejects every known-bad config | **passed 28 Nov** · 37/37 (01), 21/21 (02), negatives `[C,E]`, `[D]`, `[D]` |
+| Scenarios 01–04 (SSH bastion, web, DB, DNS) | **written and validated** |
+| `generate/run_models.py` + C3 retrieval baseline | **written — not yet run against a model** |
+| `scripts/analyze.py` (Wilson interval) | **written — not yet run on real data** |
+| Pilot dataset | **none yet** |
 
-No result has been produced. Everything above is design plus one unexecuted
-scenario. That distinction is deliberate: this document will not represent
-intent as progress.
+No model has been prompted, so no result exists. What does exist is a lab that
+has been proven to work, and an oracle that has been proven able to fail. Those
+two facts are the ones a reviewer should check first, and both are now true.
 
 ---
 
@@ -374,7 +375,7 @@ citable, and the artifact is small enough that a reviewer can re-run it.
    `sudo bash scripts/check-env.sh --live`. Green means gate **G1** is passed.
 2. **Write `harness/lab.py`, `apply.py`, `probe.py`, `score.py`** against the
    contract in `harness/README.md`. Run scenario 01's `expert.nft` and require
-   `PASS 11/11`.
+   `PASS 11/11 probes, 37/37 checks`.
 3. **Prove the oracle can fail:** hand-write one configuration exhibiting
    defect **C** and one exhibiting defect **D** in `tests/negative/`, and
    confirm the harness flags both. An oracle that cannot be made to fail has
