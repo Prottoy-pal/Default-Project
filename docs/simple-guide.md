@@ -41,16 +41,16 @@ Two things are proven, and they are the two that matter most.
 | Check | Status | Why it matters |
 |---|---|---|
 | **The lab works** | **Passed 28 Nov** | Three fake computers, both address families, packets actually move |
-| **The test can fail** | **Passed 28 Nov** | A hand-written correct firewall scores 37/37; the deliberately broken ones are caught with the right defect class |
-| A model has written a firewall | **Not yet** | This is the next step |
-| A dataset exists | **Not yet** | `results/` is empty |
+| **The test can fail** | **Passed 28 Nov** | A hand-written correct firewall scores 100%; the deliberately broken ones are caught with the right defect class |
+| **A model has written a firewall** | **Done** | `qwen2.5-coder:7b` ran locally; the first cell already exposed four harness bugs |
+| **The benchmark is complete** | **8 scenarios** | All eight service families, each with a 100%-passing hand-written reference |
+| **A dataset exists** | **In progress** | A clean C1/C2 pilot across the eight scenarios is running |
 
 The second row is the one people skip. A test suite that has never rejected
 anything is a set of assertions that happen to pass — it might be checking
-nothing at all. Ours has been made to fail on purpose: three broken
-configurations at Gate B, all three caught with the expected class. Five
-negative controls now exist in `tests/negative/`; the extra two are there to keep
-the classifier honest as scenarios are added.
+nothing at all. Ours has been made to fail on purpose: six broken
+configurations in `tests/negative/`, each caught with exactly its own class
+(A, C, D, D, D, E).
 
 ---
 
@@ -60,17 +60,19 @@ the classifier honest as scenarios are added.
 - Load any nftables ruleset into the middle one and report load errors.
 - Send real TCP, UDP, ICMP and IPv6-discovery traffic from either side.
 - Score the result against a hand-written expectation, separately per family.
-- Classify each failure into one of five defect types (A–E).
-- Prove the whole thing works by running a correct ruleset and five broken ones.
+- Classify each failure into one of five defect types (A–E), or `S` when the
+  ruleset would not load at all.
+- Prove the whole thing works by running eight correct rulesets and six broken
+  ones.
 
 ## 4. What it cannot do yet
 
-- Ask a language model to write a firewall. The code exists; it has not been run.
-- Produce a dataset. `results/` contains only a placeholder.
-- Draw a conclusion. There are no numbers yet.
+- Produce a complete dataset. The first pilot (eight scenarios, two conditions)
+  is running; the full matrix is still to come.
+- Draw a conclusion. There are no finished numbers yet.
 
-Everything up to and including the measuring instrument is finished. The
-measurement itself has not started.
+The measuring instrument is finished and has survived its first contact with a
+real model. The measurement itself has started.
 
 ---
 
@@ -103,19 +105,18 @@ is measuring nothing.
 
 ## 6. What happens next
 
-The next task is small and specific: **run one model, on one scenario, once.**
+The single-cell smoke test is done — it cost one call and found four harness
+bugs, which is exactly why it ran before the matrix. The pilot is now the eight
+scenarios, two conditions, one repeat:
 
 ```bash
-sudo bash scripts/collect.sh --conditions C1 --repeats 1 \
+sudo bash scripts/collect.sh --conditions C1,C2 --repeats 1 \
      --models local:qwen2.5-coder:7b
 ```
 
-One cell, not the matrix. If the code that pulls a code block out of the model's
-reply is wrong, that mistake costs one call to find, not fifty-four.
-
-After that: six scenarios, three models, three repeats, and the first real
-result. That is gate **D**, and it is where this stops being a plan and starts
-being a finding.
+After that: the remaining four scenarios (to reach twelve), the other two model
+slots, then the full three-repeat matrix and the first real numbers. That is
+gate **D**, and it is where this stops being a plan and starts being a finding.
 
 ---
 

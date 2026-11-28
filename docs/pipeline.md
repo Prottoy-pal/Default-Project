@@ -316,21 +316,35 @@ hours, not the end of a tired evening.
 
 | Item | State |
 |---|---|
-| Repo published with full plan, scenario 01 and 02 | **done** |
-| Gate A — lab works | **passed 28 Nov** · Ubuntu 26.04.1 on WSL2 (kernel 6.18.58.1), both pings across a veth pair |
-| Gate B — oracle can fail | **passed 28 Nov** · expert 37/37 (01) and 21/21 (02); negatives exit 1 with `[C,E]`, `[D]`, `[D]` |
-| Phase 1 harness code | **executed** (T1.1–T1.6); three harness bugs found and fixed, listed in the commit log |
-| Hours spent on the pipeline above | ~6 of 121 |
+| Repo published, benchmark authored | **8 scenarios** (01–08), 2×2 variant matrix + 8 service families |
+| Gate A — lab works | **passed 28 Nov** · Ubuntu 26.04.1 on WSL2, both families across veth pairs |
+| Gate B — oracle can fail | **passed 28 Nov** · negatives exit 1 with the correct class |
+| Oracle controls | **6 negative controls**, each caught with exactly its own class |
+| Scenario experts | **8 of 8 pass 100%** (01: 37/37 … 08: 35/35), both families |
+| Phase 1 harness code | **executed and hardened** — see the instrument notes below |
+| Model runner | **executed** against `qwen2.5-coder:7b` (local, Ollama) |
+| Pilot dataset | **in progress** — 8 scenarios × {C1, C2} on a clean `results/` |
 
-The two gates that the plan called non-negotiable are both green, and the second
-one earned its keep: running it found that the harness had never actually built
-the lab, that the peers had no route through the DUT, and that a harness
-failure exited 1 — the same code as "a probe disagreed". None of those would
-have been visible from a code review.
+### What executing the first model cell changed about the harness
 
-The honest schedule position: ~6 of 121 hours, with the environment work
-(costing more than the 2.5 h estimate, mostly install retries) finished. Phase 1
-is 12 h of remaining work, of which the model runner is the next item.
+Four defects were invisible until a model's output was actually run, and all
+four were fixed before the pilot was trusted:
 
-**Next action:** `generate/run_models.py` and scenarios 03–06, then a pilot
-dataset of six scenarios × three models × three repeats.
+1. **A ruleset that will not load is class `S`, not A–E.** The model wrote a
+   shell-escaped `\;` inside the file; the classifier originally called it B.
+   Nothing had executed. `S` is now a precondition column, excluded from A–E.
+2. **A dead IPv6 link looks like an over-block.** A ruleset with no ICMPv6
+   accept kills neighbour discovery; every allow-probe then failed and every
+   drop-probe passed vacuously, reading as C. The lab now pins permanent
+   neighbour entries so flow probes do not depend on discovery, and the ND
+   probe tests it on its own (control `e-nd-blocked.nft` reports E alone).
+3. **A failed ND probe was double-counted as C.** It is now excluded from the
+   over-block/fail-open computation.
+4. **UDP forwarding probes depended on ICMP-error delivery.** A sink now runs
+   in every namespace, so a forwarded packet is answered with a real reply.
+
+The full account is in `docs/notes/pilot-01-instrument.md`.
+
+**Next action:** finish the C1/C2 pilot, then analyze and write the pilot
+report (Gate D). After that, scenarios 09–12 to reach the twelve-scenario
+course minimum, then C3/C4 and the remaining model slots.
