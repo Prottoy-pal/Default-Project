@@ -46,16 +46,32 @@ def read_yaml(path):
         return yaml.safe_load(fh)
 
 
+def strip_comments(text):
+    """Remove nft comments before any structural heuristic runs.
+
+    A comment is not configuration. Without this, a file whose header explains
+    "`table inet` + policy accept" is classified as if it contained that table,
+    and a model that writes its reasoning in comments would be scored on the
+    reasoning. The hash still covers the original text.
+    """
+    out = []
+    for line in text.splitlines():
+        cut = line.find("#")
+        out.append(line if cut < 0 else line[:cut])
+    return "\n".join(out)
+
+
 def heuristics(text):
+    code = strip_comments(text)
     return {
-        "has_inet": bool(INET.search(text)),
-        "has_ip6_table": bool(IP6_TABLE.search(text)),
-        "has_ip_table": bool(IP_TABLE.search(text)),
-        "rule_count": len(VERDICT_WORDS.findall(text)),
-        "v4_matches": len(V4_MATCH.findall(text)),
-        "v6_matches": len(V6_MATCH.findall(text)),
-        "icmp_v4": len(ICMP_V4.findall(text)),
-        "icmp_v6": len(ICMP_V6.findall(text)),
+        "has_inet": bool(INET.search(code)),
+        "has_ip6_table": bool(IP6_TABLE.search(code)),
+        "has_ip_table": bool(IP_TABLE.search(code)),
+        "rule_count": len(VERDICT_WORDS.findall(code)),
+        "v4_matches": len(V4_MATCH.findall(code)),
+        "v6_matches": len(V6_MATCH.findall(code)),
+        "icmp_v4": len(ICMP_V4.findall(code)),
+        "icmp_v6": len(ICMP_V6.findall(code)),
         "sha256": hashlib.sha256(text.encode()).hexdigest(),
     }
 
