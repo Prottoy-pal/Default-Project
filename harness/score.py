@@ -94,8 +94,16 @@ def classify(rows, heur, loaded=True):
 
     allow_expect = [r for r in v6 if r["expected"] == "allow"]
     drop_expect = [r for r in v6 if r["expected"] == "drop"]
-    allow_fail = [r for r in allow_expect if r["verdict"] == "fail"]
-    drop_fail = [r for r in drop_expect if r["verdict"] == "fail"]
+    # The neighbour-discovery probe is excluded from the C/D computation. Its
+    # failure is evidence of E, not of over-blocking: a host that drops ICMPv6
+    # discovery is unreachable by discovery, but that says nothing about whether
+    # the policy over-blocks a flow. Without this, the one failing ND probe
+    # would be counted as an allow->drop, every discovery-breaking ruleset would
+    # also report C, and the E control would report C and E at once.
+    allow_fail = [r for r in allow_expect
+                  if r["verdict"] == "fail" and r["proto"] != "icmp6-nd"]
+    drop_fail = [r for r in drop_expect
+                 if r["verdict"] == "fail" and r["proto"] != "icmp6-nd"]
 
     defects = []
 
