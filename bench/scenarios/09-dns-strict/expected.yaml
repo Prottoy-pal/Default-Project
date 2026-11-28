@@ -1,0 +1,164 @@
+# bench/scenarios/09-dns-strict/expected.yaml
+# ---------------------------------------------------------------------------
+# Oracle for scenario 09. Written before any model was prompted.
+#
+# The same service as scenario 04, with the default flipped from accept to
+# drop. The scoped SSH and echo rules are the only family-scoped matches, and
+# they are where a family-blind model fails.
+# ---------------------------------------------------------------------------
+
+apiVersion: halffirewall/v1
+scenario: "09-dns-strict"
+
+probes:
+  - id: dns-udp-from-wan
+    tier: specified
+    proto: udp
+    src: wan
+    dst: dut-wan
+    dport: 53
+    expect: { ipv4: allow, ipv6: allow }
+    rationale: >-
+      An authoritative server answers the Internet, so DNS is open to any
+      source and any family.
+
+  - id: dns-udp-from-admin
+    tier: specified
+    proto: udp
+    src: admin
+    dst: dut-admin
+    dport: 53
+    expect: { ipv4: allow, ipv6: allow }
+    rationale: >-
+      The administrator network is inside "anywhere".
+
+  - id: dns-tcp-from-wan
+    tier: specified
+    proto: tcp
+    src: wan
+    dst: dut-wan
+    dport: 53
+    expect: { ipv4: allow, ipv6: allow }
+    rationale: >-
+      The prompt names both transports, so a ruleset that opens only UDP has
+      implemented half the DNS requirement.
+
+  - id: ssh-from-admin
+    tier: specified
+    proto: tcp
+    src: admin
+    dst: dut-admin
+    dport: 22
+    expect: { ipv4: allow, ipv6: allow }
+    rationale: >-
+      SSH is scoped to the administrator network, stated in both families.
+
+  - id: ssh-from-wan
+    tier: specified
+    proto: tcp
+    src: wan
+    dst: dut-wan
+    dport: 22
+    expect: { ipv4: drop, ipv6: drop }
+    rationale: >-
+      The scoped drop path; under a default of drop this is where a family-blind
+      model hides.
+
+  - id: echo-from-admin
+    tier: specified
+    proto: icmp-echo
+    src: admin
+    dst: dut-admin
+    expect: { ipv4: allow, ipv6: allow }
+    rationale: >-
+      Echo is answered for the administrator network on both interfaces.
+
+  - id: echo-from-wan
+    tier: specified
+    proto: icmp-echo
+    src: wan
+    dst: dut-wan
+    expect: { ipv4: drop, ipv6: drop }
+    rationale: >-
+      The prompt refuses echo from anywhere else.
+
+  - id: no-forwarding-admin-to-wan
+    tier: specified
+    proto: tcp
+    src: admin
+    dst: wan
+    dport: 80
+    expect: { ipv4: drop, ipv6: drop }
+    rationale: >-
+      The host does not forward.
+
+  - id: no-forwarding-wan-to-admin
+    tier: specified
+    proto: tcp
+    src: wan
+    dst: admin
+    dport: 22
+    expect: { ipv4: drop, ipv6: drop }
+    rationale: >-
+      Same requirement in the other direction.
+
+  - id: unused-tcp-from-wan
+    tier: silent
+    proto: tcp
+    src: wan
+    dst: dut-wan
+    dport: [80, 443, 3306, 5432, 8080, 9100]
+    expect: { ipv4: drop, ipv6: drop }
+    rationale: >-
+      "Drop every other inbound packet" names no ports.
+
+  - id: unused-udp-from-wan
+    tier: silent
+    proto: udp
+    src: wan
+    dst: dut-wan
+    dport: [123]
+    expect: { ipv4: drop, ipv6: drop }
+    rationale: >-
+      NTP is not DNS and was not asked for.
+
+  - id: loopback-echo
+    tier: silent
+    proto: icmp-echo
+    src: loopback
+    dst: loopback
+    expect: { ipv4: allow, ipv6: allow }
+    rationale: >-
+      A host that filters its own stack breaks local services.
+
+  - id: loopback-dns
+    tier: silent
+    proto: tcp
+    src: loopback
+    dst: loopback
+    dport: 53
+    expect: { ipv4: allow, ipv6: allow }
+    rationale: >-
+      A local resolver must still reach the server over both families.
+
+  - id: ipv6-neighbour-discovery
+    tier: silent
+    proto: icmp6-nd
+    src: admin
+    dst: dut-admin
+    expect: { ipv6: allow }
+    rationale: >-
+      Never mentioned and never optional; a blanket `icmpv6 drop` is defect E.
+
+unprobed:
+  - id: stateful-return-traffic
+    reason: >-
+      Needs a conntrack-aware probe; deferred to probe v2 and named in threats
+      to validity.
+  - id: path-mtu-discovery
+    reason: >-
+      Needs an MTU below 1500 to force an ICMPv6 "packet too big".
+  - id: tcp-reset-vs-silent-drop
+    reason: >-
+      A `reject` where the policy says `drop` is a different failure mode, not
+      scored here.

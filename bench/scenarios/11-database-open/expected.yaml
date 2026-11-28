@@ -1,0 +1,132 @@
+# bench/scenarios/11-database-open/expected.yaml
+# ---------------------------------------------------------------------------
+# Oracle for scenario 11. Written before any model was prompted.
+# ---------------------------------------------------------------------------
+
+apiVersion: halffirewall/v1
+scenario: "11-database-open"
+
+probes:
+  - id: postgres-from-wan
+    tier: specified
+    proto: tcp
+    src: wan
+    dst: dut-wan
+    dport: 5432
+    expect: { ipv4: allow, ipv6: allow }
+    rationale: >-
+      The database port is open to any source, so any family is inside the
+      requirement.
+
+  - id: postgres-from-admin
+    tier: specified
+    proto: tcp
+    src: admin
+    dst: dut-admin
+    dport: 5432
+    expect: { ipv4: allow, ipv6: allow }
+    rationale: >-
+      The administrator network is inside "anywhere".
+
+  - id: ssh-from-admin
+    tier: specified
+    proto: tcp
+    src: admin
+    dst: dut-admin
+    dport: 22
+    expect: { ipv4: allow, ipv6: allow }
+    rationale: >-
+      SSH is scoped to the administrator network, stated in both families.
+
+  - id: ssh-from-wan
+    tier: specified
+    proto: tcp
+    src: wan
+    dst: dut-wan
+    dport: 22
+    expect: { ipv4: drop, ipv6: drop }
+    rationale: >-
+      With `policy accept`, refusing SSH from elsewhere requires an explicit
+      negative match, and a v4-only match is the canonical D shape.
+
+  - id: echo-from-wan
+    tier: specified
+    proto: icmp-echo
+    src: wan
+    dst: dut-wan
+    expect: { ipv4: allow, ipv6: allow }
+    rationale: >-
+      Echo is permitted from anywhere here.
+
+  - id: echo-from-admin
+    tier: specified
+    proto: icmp-echo
+    src: admin
+    dst: dut-admin
+    expect: { ipv4: allow, ipv6: allow }
+    rationale: >-
+      Same requirement from the trusted side.
+
+  - id: no-forwarding-admin-to-wan
+    tier: specified
+    proto: tcp
+    src: admin
+    dst: wan
+    dport: 80
+    expect: { ipv4: drop, ipv6: drop }
+    rationale: >-
+      The host does not forward.
+
+  - id: no-forwarding-wan-to-admin
+    tier: specified
+    proto: tcp
+    src: wan
+    dst: admin
+    dport: 22
+    expect: { ipv4: drop, ipv6: drop }
+    rationale: >-
+      Same requirement in the other direction.
+
+  - id: loopback-echo
+    tier: silent
+    proto: icmp-echo
+    src: loopback
+    dst: loopback
+    expect: { ipv4: allow, ipv6: allow }
+    rationale: >-
+      A host that filters its own stack breaks local services.
+
+  - id: loopback-postgres
+    tier: silent
+    proto: tcp
+    src: loopback
+    dst: loopback
+    dport: 5432
+    expect: { ipv4: allow, ipv6: allow }
+    rationale: >-
+      A local client must still reach the database over both families.
+
+  - id: ipv6-neighbour-discovery
+    tier: silent
+    proto: icmp6-nd
+    src: admin
+    dst: dut-admin
+    expect: { ipv6: allow }
+    rationale: >-
+      Never mentioned and never optional; a blanket `icmpv6 drop` is defect E.
+
+unprobed:
+  - id: unnamed-port-closure
+    reason: >-
+      Not applicable: the base policy is accept, so an unnamed port is open by
+      design.
+  - id: stateful-return-traffic
+    reason: >-
+      Needs a conntrack-aware probe; deferred to probe v2.
+  - id: path-mtu-discovery
+    reason: >-
+      Needs an MTU below 1500 to force an ICMPv6 "packet too big".
+  - id: tcp-reset-vs-silent-drop
+    reason: >-
+      A `reject` where the policy says `drop` is a different failure mode, not
+      scored here.

@@ -2,7 +2,7 @@
 
 **Execution-based evaluation of IPv6 policy coverage in LLM-generated Linux firewall configurations**
 
-`Status: Stage 1 — proposal + pilot` · `Cost: $0` · `Lab: local, isolated` · `License: MIT`
+`Status: Stage 2 — implementation + pilot` · `Cost: $0` · `Lab: local, isolated` · `License: MIT`
 
 **New here?** [docs/simple-guide.md](docs/simple-guide.md) explains the project in plain words. [docs/context.md](docs/context.md) is the whole project in one file — problem, gap, design, current state, next steps.
 
@@ -134,13 +134,21 @@ Defects **C** and **D** are the novel ones. They survive every rule-counting che
 │   └── scenarios/
 │       ├── README.md          the scenario format, and the rules for writing one
 │       ├── _template/         copy this to start a new scenario
-│       ├── 01-ssh-bastion/    scoped source, default drop · class C
-│       ├── 02-web-server/     scoped source, default accept · class D
-│       ├── 03-db-server/      default drop · class A control
-│       └── 04-dns-server/     UDP-heavy · class B control
+│       ├── 01-ssh-bastion/         scoped · drop   (class C)
+│       ├── 02-web-server/          scoped · accept (class D)
+│       ├── 03-db-server/           any    · drop
+│       ├── 04-dns-server/          any    · accept
+│       ├── 05-container-host/      scoped · drop
+│       ├── 06-forwarding-gateway/  scoped · drop   (forward chain)
+│       ├── 07-monitoring-host/     scoped · accept
+│       ├── 08-bastion-plus-web/    any    · drop
+│       ├── 09-dns-strict/          any    · drop
+│       ├── 10-monitoring-open/     any    · accept
+│       ├── 11-database-open/       any    · accept
+│       └── 12-bastion-permissive/  scoped · accept
 ├── harness/                   apply / probe / score  (run with sudo)
 ├── generate/                  prompts, C3 retrieval baseline, model runner
-├── tests/negative/            five deliberately broken configs the oracle must reject
+├── tests/negative/            six deliberately broken configs the oracle must reject
 ├── results/                   raw JSON, git-ignored except .gitkeep
 └── scripts/
     ├── wsl-setup.sh           installs the toolchain inside Ubuntu
@@ -216,9 +224,11 @@ detail. When the two disagree, `pipeline.md` is newer.
 - [x] Closest prior work read (SBRC 2026, full text)
 - [x] **Gate A** — isolated dual-stack lab works (28 Nov 2026)
 - [x] **Gate B** — oracle passes the expert and rejects known-bad configs (28 Nov 2026)
-- [ ] **Sprint 1** — 6 scenarios + pilot run *(2 of 6 scenarios done)*
+- [x] **Benchmark** — 12 scenarios across 8 service families and a balanced 2×2 variant matrix (3 per cell); experts pass 100%
+- [x] **Model runner** — executed against `qwen2.5-coder:7b` (local Ollama)
+- [ ] **Pilot** — 8 scenarios × {C1, C2} running; then analyze and write the report
 - [ ] Benchmark frozen at 32 scenarios
-- [ ] Full generation runs (C1–C3)
+- [ ] Full generation runs (C1–C4, 3 models × 3 repeats)
 - [ ] Analysis, figures, paper draft
 - [ ] Zenodo release with DOI
 

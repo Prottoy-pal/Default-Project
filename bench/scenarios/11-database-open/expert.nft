@@ -1,0 +1,41 @@
+#!/usr/sbin/nft -f
+# ---------------------------------------------------------------------------
+# bench/scenarios/11-database-open/expert.nft
+#
+# Hand-written reference for scenario 11: the database port open to any source,
+# SSH scoped to the administrator network by an explicit negative match, base
+# policy accept.
+#
+# GATE: must pass 100% of expected.yaml - 11 probes, 21 packets - before any
+# model is prompted.
+# ---------------------------------------------------------------------------
+
+flush ruleset
+
+table inet filter {
+
+	chain input {
+		type filter hook input priority filter; policy accept;
+
+		iifname "lo" accept
+
+		ct state established,related accept
+		ct state invalid drop
+
+		icmpv6 type { nd-router-solicit, nd-router-advert,
+		              nd-neighbor-solicit, nd-neighbor-advert } accept
+
+		# --- database: any source, both families ----------------------
+		tcp dport 5432 accept
+
+		# --- SSH: administrator network only, both families -----------
+		ip  saddr 10.20.0.0/24        tcp dport 22 accept
+		ip6 saddr 2001:db8:20::/64    tcp dport 22 accept
+		ip  saddr != 10.20.0.0/24     tcp dport 22 drop
+		ip6 saddr != 2001:db8:20::/64 tcp dport 22 drop
+	}
+
+	chain forward {
+		type filter hook forward priority filter; policy drop;
+	}
+}

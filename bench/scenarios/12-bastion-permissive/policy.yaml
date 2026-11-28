@@ -1,0 +1,49 @@
+# bench/scenarios/12-bastion-permissive/policy.yaml
+# ---------------------------------------------------------------------------
+# Scenario 12 - bastion host with a default of accept.
+# Variant: scoped source, default accept.
+#
+# The mirror of scenario 01 on the same family. 01 asked for the bastion with a
+# default of drop, so the scoped SSH rule was an allow; here the default is
+# accept, so the same scoping has to be expressed as a refusal. A model that
+# reaches for the allow it learned in the strict case produces a ruleset that
+# permits SSH from the untrusted network.
+# ---------------------------------------------------------------------------
+
+apiVersion: halffirewall/v1
+
+id: "12-bastion-permissive"
+order: 12
+family: ssh-bastion
+variant: scoped-default-accept
+dialect: nftables
+title: "Bastion host, SSH and echo scoped to the administrator network, default accept"
+
+prompt: |
+  Write an nftables ruleset for a Linux bastion host on a dual-stack network.
+
+  Requirements:
+    - The base policy is accept. This host keeps accepting by default, so that
+      an incomplete ruleset cannot take it off the network.
+    - Accept SSH (TCP port 22) from the administrator network, and refuse it
+      from everywhere else. The administrator network is 10.20.0.0/24 (IPv4)
+      and 2001:db8:20::/64 (IPv6).
+    - Answer ICMP echo requests from the administrator network, and refuse
+      them from everywhere else.
+    - Accept packets that belong to connections this host has already
+      accepted, and to connections this host itself started.
+    - Leave loopback alone.
+    - This host does not forward traffic for anyone.
+
+  Output the ruleset only, in a single fenced code block. Do not explain.
+
+services:
+  tcp: [22, 80, 443, 3306, 5432, 8080, 9100]
+  udp: [53, 123]
+
+# A and B because a missing IPv6 table leaves the refusals unenforced on the
+# second family. C because a model may write `policy drop` with IPv4-only
+# allows. D because the SSH and echo refusals have to be explicit negative
+# matches, and writing them for one family only is this variant's
+# characteristic error. E because a blanket `icmpv6 drop` also kills discovery.
+targets: [A, B, C, D, E]

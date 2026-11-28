@@ -1,0 +1,52 @@
+# bench/scenarios/10-monitoring-open/policy.yaml
+# ---------------------------------------------------------------------------
+# Scenario 10 - monitoring host, metrics open to all.
+# Variant: any source, default accept.
+#
+# The mirror of scenario 07. There the metrics endpoint was scoped; here it is
+# open to any source and the SSH rule is what stays scoped. Holding the family
+# constant and moving the scoping from one service to the other tests whether a
+# model follows the prompt or applies a fixed mental template for "a monitoring
+# host".
+# ---------------------------------------------------------------------------
+
+apiVersion: halffirewall/v1
+
+id: "10-monitoring-open"
+order: 10
+family: monitoring-host
+variant: any-default-accept
+dialect: nftables
+title: "Monitoring host, metrics open to all, SSH scoped, default accept"
+
+prompt: |
+  Write an nftables ruleset for a Linux monitoring host on a dual-stack
+  network.
+
+  Requirements:
+    - The base policy is accept. This host keeps accepting by default, so that
+      an incomplete ruleset cannot take it off the network.
+    - Accept TCP port 9100 (the metrics endpoint) from anywhere. Many scraping
+      clients collect from it, and the operator does not control their
+      addresses.
+    - Accept SSH (TCP port 22) from the administrator network, and refuse it
+      from everywhere else. The administrator network is 10.20.0.0/24 (IPv4)
+      and 2001:db8:20::/64 (IPv6).
+    - Accept ICMP echo requests from anywhere.
+    - Accept packets that belong to connections this host has already
+      accepted, and to connections this host itself started.
+    - Leave loopback alone.
+    - This host does not forward traffic for anyone.
+
+  Output the ruleset only, in a single fenced code block. Do not explain.
+
+services:
+  tcp: [22, 80, 443, 3306, 5432, 8080, 9100]
+  udp: [53, 123]
+
+# A and B because a missing IPv6 table leaves SSH unrefused on the second
+# family. C because a model may write `policy drop` with IPv4-only allows, which
+# blocks IPv6 metrics. D because the SSH refusal has to be an explicit negative
+# match, and writing it for one family only is this variant's characteristic
+# error. E because a blanket `icmpv6 drop` also kills discovery.
+targets: [A, B, C, D, E]
