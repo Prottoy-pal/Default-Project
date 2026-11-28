@@ -121,6 +121,7 @@ Defects **C** and **D** are the novel ones. They survive every rule-counting che
 ├── README.md                  ← you are here
 ├── docs/
 │   ├── simple-guide.md        the project in plain words — best first read
+│   ├── progress-in-plain-words.md  what has been built so far, for any reader
 │   ├── context.md             the whole project in one file — technical briefing
 │   ├── setup-wsl.md           Windows → WSL2 → Ubuntu, step by step
 │   ├── pipeline.md            every task, with time, difficulty and gates
@@ -226,7 +227,7 @@ detail. When the two disagree, `pipeline.md` is newer.
 - [x] **Gate B** — oracle passes the expert and rejects known-bad configs (28 Nov 2026)
 - [x] **Benchmark** — 12 scenarios across 8 service families and a balanced 2×2 variant matrix (3 per cell); experts pass 100%
 - [x] **Model runner** — executed against `qwen2.5-coder:7b` (local Ollama)
-- [ ] **Pilot** — 8 scenarios × {C1, C2} running; then analyze and write the report
+- [x] **Pilot** — 8 scenarios × {C1, C2} run; report at [docs/pilot-report.md](docs/pilot-report.md)
 - [ ] Benchmark frozen at 32 scenarios
 - [ ] Full generation runs (C1–C4, 3 models × 3 repeats)
 - [ ] Analysis, figures, paper draft

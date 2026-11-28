@@ -333,7 +333,15 @@ def main():
                   f"({summary['passed']}/{summary['total']})")
 
             previous = ruleset
-            failures = failure_lines(summary["failing"])
+            if not row["apply"]["loaded"]:
+                # A syntax failure is not a behavioural failure. Feeding back
+                # three dozen "not-loaded" probe lines tells the model nothing;
+                # the parse error does. C4 exists to let the model correct its
+                # own mistakes, and a lexer error is the one it can act on.
+                failures = [f"the ruleset was rejected by nft: {ln}"
+                            for ln in row["apply"]["stderr"].splitlines()[:8]]
+            else:
+                failures = failure_lines(summary["failing"])
             if args.condition != "C4" or summary["verdicts"]["parity"] == "pass":
                 break
 

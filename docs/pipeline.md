@@ -323,7 +323,7 @@ hours, not the end of a tired evening.
 | Scenario experts | **8 of 8 pass 100%** (01: 37/37 … 08: 35/35), both families |
 | Phase 1 harness code | **executed and hardened** — see the instrument notes below |
 | Model runner | **executed** against `qwen2.5-coder:7b` (local, Ollama) |
-| Pilot dataset | **in progress** — 8 scenarios × {C1, C2} on a clean `results/` |
+| Pilot dataset | **done** — 8 scenarios × {C1, C2}; report at `docs/pilot-report.md` |
 
 ### What executing the first model cell changed about the harness
 
@@ -345,6 +345,6 @@ four were fixed before the pilot was trusted:
 
 The full account is in `docs/notes/pilot-01-instrument.md`.
 
-**Next action:** finish the C1/C2 pilot, then analyze and write the pilot
-report (Gate D). After that, scenarios 09–12 to reach the twelve-scenario
-course minimum, then C3/C4 and the remaining model slots.
+**Next action:** C4 repair over the pilot cells (the pilot shows syntax
+failures are what mask C and D), then the remaining model slots and the full
+matrix. Twelve scenarios are now in place and gated.
