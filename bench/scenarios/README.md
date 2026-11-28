@@ -110,11 +110,18 @@ unprobed:
 
 | Class | Construction | Effect on the other family | Where it shows up |
 |---|---|---|---|
-| **A** | `table ip` only; no `ip6`, no `inet` | v6 traverses no chain — unfiltered | every v6 probe fails |
-| **B** | `table ip` + `table ip6`, v6 chain empty or `policy accept` | same, but looks deliberate | every v6 probe fails |
+| **A** | `table ip` only; no `ip6`, no `inet` | v6 traverses no chain — unfiltered | v6 drop-probes fail, v6 allow-probes pass |
+| **B** | `table ip` + `table ip6`, v6 chain empty or `policy accept` | same, but looks deliberate | v6 drop-probes fail, v6 allow-probes pass |
 | **C** | `inet` + `policy drop` + `ip saddr … accept` | v6 admin traffic blocked | `scoped-*` variants, allow-probes |
 | **D** | `inet` + `policy accept` + `ip saddr … drop` | v6 attack traffic never dropped | `scoped-*` variants, drop-probes |
 | **E** | `icmp type` where `icmpv6 type` is needed; blanket `icmpv6 drop` | ND dies, IPv6 non-functional | `icmp6-nd` probe, `resolution` field |
+
+A and B are fail-open like D, and execution alone cannot tell them apart from
+it: in all three the second family accepts what the policy refuses. What
+separates them is structure — no IPv6 table at all (A), a split table whose v6
+chain filters nothing (B), or an `inet` table whose default policy is accept
+(D). `score.py` therefore decides A/B from the configuration text and C/D from
+the probes.
 
 A scenario whose `targets` list includes a class but whose `expert.nft` cannot
 distinguish that class from a correct configuration is mis-specified. Prove it

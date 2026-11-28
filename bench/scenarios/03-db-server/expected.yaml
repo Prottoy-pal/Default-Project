@@ -1,0 +1,186 @@
+# bench/scenarios/03-db-server/expected.yaml
+# ---------------------------------------------------------------------------
+# Oracle for scenario 03. Written before any model was prompted.
+#
+# The two tiers:
+#   specified - PostgreSQL on both families, SSH and echo scoped to the
+#               administrator network, no forwarding.
+#   silent    - unnamed ports closed, loopback intact, neighbour discovery.
+#
+# The point of this scenario is that the main allow rule is NOT source-scoped.
+# If a model leaves IPv6 unfiltered here, there is no scoped `ip saddr` to
+# explain it away: the rule that opens the database opens it for both families
+# or for neither, and the scoped SSH/echo rules are the only place where a
+# family-scoped match can appear.
+# ---------------------------------------------------------------------------
+
+apiVersion: halffirewall/v1
+scenario: "03-db-server"
+
+probes:
+  # ======================= specified =====================================
+  - id: postgres-from-wan
+    tier: specified
+    proto: tcp
+    src: wan
+    dst: dut-wan
+    dport: 5432
+    expect: { ipv4: allow, ipv6: allow }
+    rationale: >-
+      The prompt opens 5432 to any source, and an address family is part of
+      "any". This is the probe a `table ip`-only ruleset fails.
+
+  - id: postgres-from-admin
+    tier: specified
+    proto: tcp
+    src: admin
+    dst: dut-admin
+    dport: 5432
+    expect: { ipv4: allow, ipv6: allow }
+    rationale: >-
+      The administrator network is inside "any". A ruleset that only opens the
+      database on the untrusted interface has narrowed the policy.
+
+  - id: ssh-from-admin
+    tier: specified
+    proto: tcp
+    src: admin
+    dst: dut-admin
+    dport: 22
+    expect: { ipv4: allow, ipv6: allow }
+    rationale: >-
+      SSH is permitted from the administrator network, whose prefixes the
+      prompt states in both families.
+
+  - id: ssh-from-wan
+    tier: specified
+    proto: tcp
+    src: wan
+    dst: dut-wan
+    dport: 22
+    expect: { ipv4: drop, ipv6: drop }
+    rationale: >-
+      SSH is scoped, so this is the drop path that defect D turns into a
+      fail-open on the second family.
+
+  - id: echo-from-admin
+    tier: specified
+    proto: icmp-echo
+    src: admin
+    dst: dut-admin
+    expect: { ipv4: allow, ipv6: allow }
+    rationale: >-
+      Echo is answered for the administrator network on both interfaces.
+
+  - id: echo-from-wan
+    tier: specified
+    proto: icmp-echo
+    src: wan
+    dst: dut-wan
+    expect: { ipv4: drop, ipv6: drop }
+    rationale: >-
+      The prompt says not to answer echo from anywhere else. A ruleset that
+      accepts echo globally has ignored a stated requirement, and a ruleset
+      that blocks it only for IPv4 is defect D.
+
+  - id: no-forwarding-admin-to-wan
+    tier: specified
+    proto: tcp
+    src: admin
+    dst: wan
+    dport: 80
+    expect: { ipv4: drop, ipv6: drop }
+    rationale: >-
+      The host does not forward. The lab routes this packet through the DUT so
+      the forward hook has to drop it.
+
+  - id: no-forwarding-wan-to-admin
+    tier: specified
+    proto: tcp
+    src: wan
+    dst: admin
+    dport: 22
+    expect: { ipv4: drop, ipv6: drop }
+    rationale: >-
+      Same requirement in the other direction. A database server that becomes
+      a router is a worse outcome than one that leaks a port.
+
+  # ======================= silent ========================================
+  - id: unused-tcp-from-wan
+    tier: silent
+    proto: tcp
+    src: wan
+    dst: dut-wan
+    dport: [80, 443, 3306, 8080, 9100]
+    expect: { ipv4: drop, ipv6: drop }
+    rationale: >-
+      "Drop every other inbound packet" names no ports. A database host with
+      an HTTP server on it was not asked for and must not be reachable.
+
+  - id: unused-tcp-from-admin
+    tier: silent
+    proto: tcp
+    src: admin
+    dst: dut-admin
+    dport: [80, 443, 8080]
+    expect: { ipv4: drop, ipv6: drop }
+    rationale: >-
+      The administrator network gets SSH and echo, not the whole host.
+
+  - id: unused-udp-from-wan
+    tier: silent
+    proto: udp
+    src: wan
+    dst: dut-wan
+    dport: [53, 123]
+    expect: { ipv4: drop, ipv6: drop }
+    rationale: >-
+      No UDP service is described. Handling TCP and forgetting that UDP is
+      traffic is still half a firewall.
+
+  - id: loopback-echo
+    tier: silent
+    proto: icmp-echo
+    src: loopback
+    dst: loopback
+    expect: { ipv4: allow, ipv6: allow }
+    rationale: >-
+      A host that filters its own stack breaks local services, including the
+      database's own health checks.
+
+  - id: loopback-postgres
+    tier: silent
+    proto: tcp
+    src: loopback
+    dst: loopback
+    dport: 5432
+    expect: { ipv4: allow, ipv6: allow }
+    rationale: >-
+      The same requirement as a connection: a local client must still reach
+      5432 over both families.
+
+  - id: ipv6-neighbour-discovery
+    tier: silent
+    proto: icmp6-nd
+    src: admin
+    dst: dut-admin
+    expect: { ipv6: allow }
+    rationale: >-
+      Never mentioned and never optional: without neighbour discovery the
+      IPv6 link does not work at all. Blanket `icmpv6 drop` is defect E.
+
+# Deliberately not tested here. Declared rather than silently omitted.
+unprobed:
+  - id: stateful-return-traffic
+    reason: >-
+      Needs a conntrack-aware probe; its verdict is confounded with the output
+      chain. Deferred to probe v2 and named in threats to validity.
+  - id: path-mtu-discovery
+    reason: >-
+      Needs an MTU below 1500 to force an ICMPv6 "packet too big". A separate
+      scenario, not a probe bolted onto this one.
+  - id: tcp-reset-vs-silent-drop
+    reason: >-
+      A `reject` where the policy says `drop` is a different failure mode from
+      fail-open, and the current probe vocabulary records both as "not
+      reached". Named here rather than scored as a pass.

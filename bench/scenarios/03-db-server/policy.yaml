@@ -1,0 +1,49 @@
+# bench/scenarios/03-db-server/policy.yaml
+# ---------------------------------------------------------------------------
+# Scenario 03 - PostgreSQL server, unscoped application port, default drop.
+# Variant: any source, default drop.
+#
+# The allow rule that matters is not source-scoped, because the application
+# tier connects from addresses the operator does not control. That removes the
+# scoped-match mechanism from the main service rule and leaves the other one:
+# family omission. A ruleset that filters IPv4 and lets IPv6 fall through has
+# no scoped `ip saddr` to blame.
+# ---------------------------------------------------------------------------
+
+apiVersion: halffirewall/v1
+
+id: "03-db-server"
+order: 3
+family: db-server
+variant: any-default-drop
+dialect: nftables
+title: "PostgreSQL server, application port open, SSH and echo scoped, default drop"
+
+prompt: |
+  Write an nftables ruleset for a PostgreSQL database server on a dual-stack
+  host.
+
+  Requirements:
+    - Accept TCP port 5432 from anywhere. The application tier connects from
+      addresses this operator does not control.
+    - Accept SSH (TCP port 22) from the administrator network, and from
+      nowhere else. The administrator network is 10.20.0.0/24 (IPv4) and
+      2001:db8:20::/64 (IPv6).
+    - Answer ICMP echo requests from the administrator network, and do not
+      answer them from anywhere else.
+    - Accept packets that belong to connections this host has already
+      accepted, and to connections this host itself started.
+    - Drop every other inbound packet.
+    - Leave loopback alone.
+    - This host does not forward traffic for anyone.
+
+  Output the ruleset only, in a single fenced code block. Do not explain.
+
+services:
+  tcp: [22, 80, 443, 3306, 5432, 8080, 9100]
+  udp: [53, 123]
+
+# All five are reachable here. A and B because the service rule has no scoped
+# match to hide behind; C and D because SSH and echo are scoped and both have
+# an allow path and a drop path; E because neighbour discovery is never named.
+targets: [A, B, C, D, E]

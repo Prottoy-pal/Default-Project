@@ -73,18 +73,27 @@ def classify(rows, heur):
 
     defects = []
 
-    # fail-open: traffic that should have been dropped reached the host
-    if drop_fail:
-        defects.append("D")
+    # Fail-open: traffic that should have been dropped reached the host.
+    # Over-block: traffic that should have been allowed never arrived.
+    #
+    # A and B are structural: if the configuration has no IPv6 filtering at all
+    # (`table ip` alone, or a split `ip`/`ip6` pair whose v6 chain is empty),
+    # the execution data looks exactly like D - the second family is wide open.
+    # Naming it D would blame the default policy for a missing table, so the
+    # structure decides A/B and the behaviour decides C/D.
+    fail_open = bool(drop_fail)
+    over_block = bool(allow_fail)
 
-    # over-block: traffic that should have been allowed never arrived
-    if allow_fail:
+    if fail_open or over_block:
         if not heur["has_inet"] and not heur["has_ip6_table"]:
             defects.append("A")
         elif heur["has_ip6_table"] and not heur["has_inet"]:
             defects.append("B")
         else:
-            defects.append("C")
+            if fail_open:
+                defects.append("D")
+            if over_block:
+                defects.append("C")
 
     # ICMPv6 mishandling: neighbour discovery failed
     nd = [r for r in rows if r["proto"] == "icmp6-nd" and r["verdict"] == "fail"]

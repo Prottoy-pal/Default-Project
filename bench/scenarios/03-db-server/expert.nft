@@ -1,0 +1,50 @@
+#!/usr/sbin/nft -f
+# ---------------------------------------------------------------------------
+# bench/scenarios/03-db-server/expert.nft
+#
+# Hand-written reference for scenario 03: PostgreSQL open to any source, SSH
+# and echo scoped to the administrator network, both families, default drop.
+#
+# GATE: must pass 100% of expected.yaml - 14 probes, 41 packets - before any
+# model is prompted.
+#
+# The shape to notice: the database rule carries no address match at all, so
+# it protects both families by construction. The scoped rules below it are
+# where a family-blind model goes wrong, and they appear twice each.
+# ---------------------------------------------------------------------------
+
+flush ruleset
+
+table inet filter {
+
+	chain input {
+		type filter hook input priority filter; policy drop;
+
+		iifname "lo" accept
+
+		ct state established,related accept
+		ct state invalid drop
+
+		icmpv6 type { nd-router-solicit, nd-router-advert,
+		              nd-neighbor-solicit, nd-neighbor-advert } accept
+
+		# --- PostgreSQL: any source, both families by construction ------
+		tcp dport 5432 accept
+
+		# --- SSH: administrator network only, both families -------------
+		ip  saddr 10.20.0.0/24     tcp dport 22 accept
+		ip6 saddr 2001:db8:20::/64 tcp dport 22 accept
+
+		# --- Echo: administrator network only, both families ------------
+		ip  saddr 10.20.0.0/24     icmp   type echo-request accept
+		ip6 saddr 2001:db8:20::/64 icmpv6 type echo-request accept
+
+		# Everything else falls through to `policy drop`, which is what
+		# closes the unnamed ports and refuses echo from the untrusted zone.
+		counter comment "dropped by policy"
+	}
+
+	chain forward {
+		type filter hook forward priority filter; policy drop;
+	}
+}

@@ -1,0 +1,43 @@
+#!/usr/sbin/nft -f
+# tests/negative/a-ip-table-only.nft
+#
+# Defect class A, deliberately: a complete, correct IPv4 firewall and no IPv6
+# firewall at all. `table ip` means IPv6 packets traverse no chain, so every
+# IPv6 packet is accepted by the kernel's default and the host is wide open on
+# the second family while the file reads like a careful hardening job.
+#
+# Run against bench/scenarios/03-db-server, where the main service rule has no
+# address match to hide behind:
+#
+#     sudo bash harness/run.sh bench/scenarios/03-db-server \
+#          --config tests/negative/a-ip-table-only.nft --reset
+#
+# Expected: exit 1, defects=[A], ipv4=pass, ipv6=fail. Every IPv6 drop-probe
+# fails (nothing is dropped) and every IPv6 allow-probe passes.
+#
+# This control is why score.py classifies A/B structurally: the execution data
+# for this file is indistinguishable from a `table inet` + `policy accept`
+# fail-open (class D). Only the absence of an IPv6 table separates them.
+
+flush ruleset
+
+table ip filter {
+
+	chain input {
+		type filter hook input priority filter; policy drop;
+
+		iifname "lo" accept
+
+		ct state established,related accept
+		ct state invalid drop
+
+		tcp dport 5432 accept
+
+		ip saddr 10.20.0.0/24 tcp dport 22 accept
+		ip saddr 10.20.0.0/24 icmp type echo-request accept
+	}
+
+	chain forward {
+		type filter hook forward priority filter; policy drop;
+	}
+}
