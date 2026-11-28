@@ -15,7 +15,7 @@ apiVersion: halffirewall/v1
 id: "NN-short-name"            # must equal the directory name
 order: 0                       # 1-based position in the benchmark
 family: ssh-bastion            # ssh-bastion | web-server | db-server |
-                               # dns-resolver | container-host |
+                               # dns-server | container-host |
                                # forwarding-gateway | monitoring-host |
                                # bastion-plus-web
 variant: scoped-default-drop   # any-default-drop | scoped-default-drop |

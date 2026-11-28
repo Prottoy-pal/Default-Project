@@ -46,7 +46,7 @@ Nothing in a scenario file may contain an IP address that is not also in
 | `services` | Ports the lab must have a listener on for this scenario. |
 | `targets` | Defect classes (A–E) this scenario is *capable* of exposing. |
 
-**Eight families:** `ssh-bastion`, `web-server`, `db-server`, `dns-resolver`,
+**Eight families:** `ssh-bastion`, `web-server`, `db-server`, `dns-server`,
 `container-host`, `forwarding-gateway`, `monitoring-host`, `bastion-plus-web`.
 
 **Four variants** — a 2 × 2 factorial. This is what makes attribution possible:
@@ -123,6 +123,22 @@ chain filters nothing (B), or an `inet` table whose default policy is accept
 (D). `score.py` therefore decides A/B from the configuration text and C/D from
 the probes.
 
+### `S` is not one of these
+
+A ruleset the kernel refuses to load has not been tested. The probes report
+`not-loaded` for every flow, and no behaviour was observed, so there is nothing
+to attribute to A–E. `score.py` records such a row with `defects: ["S"]`,
+`load_failure: true`, and `verdicts: not-loaded` on both families, and
+`scripts/analyze.py` counts it in a separate `load-fail` column that is excluded
+from the parity, family and silent-exposure denominators.
+
+The distinction matters for the result, not just for tidiness: a model that
+writes `\;` where nftables expects `;` has failed at syntax, and the literature
+already reports that frontier models get syntax right nearly always. Folding a
+syntax error into "fails on IPv6" would inflate the prevalence of the classes
+this project actually studies, which is exactly the mistake a benchmark must not
+make.
+
 A scenario whose `targets` list includes a class but whose `expert.nft` cannot
 distinguish that class from a correct configuration is mis-specified. Prove it
 with a negative control in `tests/negative/`.
@@ -160,4 +176,5 @@ with a negative control in `tests/negative/`.
 [ ] services block matches the ports the probes touch
 [ ] expert.nft passes 100%
 [ ] a deliberately broken config in tests/negative/ is caught by this oracle
+[ ] a ruleset that does not load is reported as S, never as A-E
 ```

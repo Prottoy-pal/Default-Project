@@ -1,6 +1,6 @@
 # Negative controls
 
-Four configurations that are **deliberately wrong**, written so that the
+Five configurations that are **deliberately wrong**, written so that the
 oracle has something to fail against.
 
 An oracle you have never seen fail is not an oracle. It is a set of assertions
@@ -12,6 +12,7 @@ that happen to pass.
 | `c-over-block.nft` | **C** | Strict, dual-stack | Locks the administrator out over IPv6 |
 | `d-fail-open.nft` | **D** | Hardened | Leaves SSH and every other port open over IPv6 |
 | `d-scoped-accept.nft` | **D** | Correct default-accept ruleset | Drops SSH from the untrusted zone over IPv4 only |
+| `d-v4-only-negative.nft` | **D** | Correct default-accept ruleset with explicit refusals | Writes the refusal for IPv4 only, so IPv6 falls through to accept |
 
 Run them against their scenarios:
 

@@ -1,0 +1,169 @@
+# bench/scenarios/04-dns-server/expected.yaml
+# ---------------------------------------------------------------------------
+# Oracle for scenario 04. Written before any model was prompted.
+#
+#   specified - DNS on both transports for any source, SSH and echo refused
+#               outside the administrator network, no forwarding.
+#   silent    - loopback intact, neighbour discovery.
+#
+# "Unnamed ports closed" is deliberately absent: the stated base policy is
+# accept, so a port nobody mentioned is open by design here, not by mistake.
+# Scoring it as a defect would punish a model for obeying the prompt. It is
+# declared in `unprobed` instead of being silently dropped.
+# ---------------------------------------------------------------------------
+
+apiVersion: halffirewall/v1
+scenario: "04-dns-server"
+
+probes:
+  # ======================= specified =====================================
+  - id: dns-udp-from-wan
+    tier: specified
+    proto: udp
+    src: wan
+    dst: dut-wan
+    dport: 53
+    expect: { ipv4: allow, ipv6: allow }
+    rationale: >-
+      An authoritative server answers the Internet. "Anywhere" includes both
+      families, so a `table ip`-only ruleset fails this over IPv6.
+
+  - id: dns-udp-from-admin
+    tier: specified
+    proto: udp
+    src: admin
+    dst: dut-admin
+    dport: 53
+    expect: { ipv4: allow, ipv6: allow }
+    rationale: >-
+      The administrator network is inside "anywhere". A ruleset that only
+      opens 53 on the untrusted interface has narrowed the policy.
+
+  - id: dns-tcp-from-wan
+    tier: specified
+    proto: tcp
+    src: wan
+    dst: dut-wan
+    dport: 53
+    expect: { ipv4: allow, ipv6: allow }
+    rationale: >-
+      The prompt names both transports. A model that opens only UDP has
+      implemented half the DNS requirement, and doing that on one family only
+      is a second, independent half.
+
+  - id: ssh-from-admin
+    tier: specified
+    proto: tcp
+    src: admin
+    dst: dut-admin
+    dport: 22
+    expect: { ipv4: allow, ipv6: allow }
+    rationale: >-
+      SSH is permitted from the administrator network, whose prefixes the
+      prompt states in both families.
+
+  - id: ssh-from-wan
+    tier: specified
+    proto: tcp
+    src: wan
+    dst: dut-wan
+    dport: 22
+    expect: { ipv4: drop, ipv6: drop }
+    rationale: >-
+      With `policy accept`, refusing SSH from elsewhere requires an explicit
+      negative match. A v4-only `ip saddr != ... drop` is the canonical D
+      shape, and this probe is where it shows.
+
+  - id: echo-from-admin
+    tier: specified
+    proto: icmp-echo
+    src: admin
+    dst: dut-admin
+    expect: { ipv4: allow, ipv6: allow }
+    rationale: >-
+      Echo is answered for the administrator network on both interfaces.
+
+  - id: echo-from-wan
+    tier: specified
+    proto: icmp-echo
+    src: wan
+    dst: dut-wan
+    expect: { ipv4: drop, ipv6: drop }
+    rationale: >-
+      The same negative match as SSH, on a different protocol. A model can get
+      one right and the other wrong, so both are probed.
+
+  - id: no-forwarding-admin-to-wan
+    tier: specified
+    proto: tcp
+    src: admin
+    dst: wan
+    dport: 80
+    expect: { ipv4: drop, ipv6: drop }
+    rationale: >-
+      The host does not forward. The lab routes this packet through the DUT so
+      the forward hook has to drop it.
+
+  - id: no-forwarding-wan-to-admin
+    tier: specified
+    proto: tcp
+    src: wan
+    dst: admin
+    dport: 22
+    expect: { ipv4: drop, ipv6: drop }
+    rationale: >-
+      Same requirement in the other direction. An open resolver that becomes a
+      router is the worst version of this host.
+
+  # ======================= silent ========================================
+  - id: loopback-echo
+    tier: silent
+    proto: icmp-echo
+    src: loopback
+    dst: loopback
+    expect: { ipv4: allow, ipv6: allow }
+    rationale: >-
+      A host that filters its own stack breaks local services.
+
+  - id: loopback-dns
+    tier: silent
+    proto: udp
+    src: loopback
+    dst: loopback
+    dport: 53
+    expect: { ipv4: allow, ipv6: allow }
+    rationale: >-
+      The same requirement as a connection. A local resolver or health check
+      must still reach 53 over both families.
+
+  - id: ipv6-neighbour-discovery
+    tier: silent
+    proto: icmp6-nd
+    src: admin
+    dst: dut-admin
+    expect: { ipv6: allow }
+    rationale: >-
+      Never mentioned and never optional. A blanket `icmpv6 drop` written to
+      satisfy the echo requirement also kills neighbour discovery, which is
+      defect E and makes the IPv6 interface unusable.
+
+# Declared rather than silently omitted.
+unprobed:
+  - id: unnamed-port-closure
+    reason: >-
+      Not applicable to this variant. The prompt says the base policy is
+      accept, so a port nobody named is open by design. Scoring it as a defect
+      would punish a model for following the instruction.
+  - id: stateful-return-traffic
+    reason: >-
+      Needs a conntrack-aware probe; its verdict is confounded with the output
+      chain. Deferred to probe v2 and named in threats to validity.
+  - id: path-mtu-discovery
+    reason: >-
+      Needs an MTU below 1500 to force an ICMPv6 "packet too big". A separate
+      scenario, not a probe bolted onto this one.
+  - id: tcp-reset-vs-silent-drop
+    reason: >-
+      A `reject` where the policy says `drop` is a different failure mode from
+      fail-open, and the current probe vocabulary records both as "not
+      reached". Named here rather than scored as a pass.

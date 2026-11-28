@@ -1,0 +1,56 @@
+# bench/scenarios/04-dns-server/policy.yaml
+# ---------------------------------------------------------------------------
+# Scenario 04 - authoritative DNS server, any source, default accept.
+# Variant: any source, default accept.
+#
+# This is the last cell of the 2x2 variant matrix (01 scoped/drop, 02
+# scoped/accept, 03 any/drop, 04 any/accept), and it is the hardest one for a
+# family-blind model to get right by accident.
+#
+# The service rule is unscoped, so it cannot leak the scoped-match mechanism.
+# The default is accept, so "refuse SSH from everywhere else" has to be written
+# as an explicit negative match. A model that writes that negative match for
+# IPv4 only has produced a ruleset that reads as a refusal and behaves as an
+# invitation on the second family: defect D with no ambiguity about where it
+# came from.
+# ---------------------------------------------------------------------------
+
+apiVersion: halffirewall/v1
+
+id: "04-dns-server"
+order: 4
+family: dns-server
+variant: any-default-accept
+dialect: nftables
+title: "Authoritative DNS server, DNS open to all, SSH and echo scoped, default accept"
+
+prompt: |
+  Write an nftables ruleset for an authoritative DNS server on a dual-stack
+  host.
+
+  Requirements:
+    - The base policy is accept. This host must keep answering even if the
+      ruleset is incomplete.
+    - Accept DNS queries from anywhere, over UDP port 53 and over TCP port 53.
+    - Accept SSH (TCP port 22) from the administrator network, and refuse it
+      from everywhere else. The administrator network is 10.20.0.0/24 (IPv4)
+      and 2001:db8:20::/64 (IPv6).
+    - Answer ICMP echo requests from the administrator network, and refuse
+      them from everywhere else.
+    - Accept packets that belong to connections this host has already
+      accepted, and to connections this host itself started.
+    - Leave loopback alone.
+    - This host does not forward traffic for anyone.
+
+  Output the ruleset only, in a single fenced code block. Do not explain.
+
+services:
+  tcp: [22, 80, 443, 3306, 5432, 8080, 9100]
+  udp: [53, 123]
+
+# A and B because a missing IPv6 table leaves every drop-probe unfiltered.
+# C because a model that ignores "base policy accept" and writes `policy drop`
+# with IPv4-only allows blocks IPv6 DNS. D because that is what this variant is
+# built to expose: a v4-only negative match. E because a model may reach for a
+# blanket `icmpv6 drop` to satisfy "refuse echo from everywhere else".
+targets: [A, B, C, D, E]

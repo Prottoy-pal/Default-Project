@@ -76,8 +76,18 @@ def heuristics(text):
     }
 
 
-def classify(rows, heur):
+def classify(rows, heur, loaded=True):
     """Execution-derived defect classes, named in bench/scenarios/README.md."""
+    # A ruleset that never loaded produced no behaviour, so there is nothing to
+    # classify. Saying "B" here would mean inferring a fail-open policy from a
+    # file the kernel rejected - the probes all read "not-loaded" precisely
+    # because nothing was tested. S is not a sixth defect class in the A-E
+    # sense; it is a precondition failure, and the paper reports it as its own
+    # column so that syntax errors do not silently inflate the prevalence of
+    # the classes the project actually studies.
+    if not loaded:
+        return ["S"]
+
     v6 = [r for r in rows if r["family"] == "ipv6"]
     if not v6:
         return []
@@ -134,7 +144,17 @@ def family_verdict(rows, family):
     return "pass" if all(r["verdict"] == "pass" for r in subset) else "fail"
 
 
-def summarise(rows):
+def summarise(rows, loaded=True):
+    if not loaded:
+        return {
+            "ipv4": "not-loaded",
+            "ipv6": "not-loaded",
+            "parity": "not-loaded",
+            "specified": "not-loaded",
+            "silent": "not-loaded",
+            "passed": 0,
+            "total": len(rows),
+        }
     v4, v6 = family_verdict(rows, "ipv4"), family_verdict(rows, "ipv6")
     parity = "pass" if v4 == "pass" and v6 == "pass" else "fail"
     return {
@@ -228,8 +248,9 @@ def main():
                 })
 
     heur = heuristics(text)
-    verdicts = summarise(rows)
-    defects = classify(rows, heur)
+    loaded = applied["loaded"]
+    verdicts = summarise(rows, loaded)
+    defects = classify(rows, heur, loaded)
 
     row = {
         "run_id": (f"{datetime.now(timezone.utc).strftime('%Y-%m-%dT%H-%M-%SZ')}"
@@ -247,6 +268,7 @@ def main():
         },
         "apply": {"loaded": applied["loaded"], "stderr": applied["stderr"],
                   "duration_ms": applied["duration_ms"]},
+        "load_failure": not applied["loaded"],
         "probes": rows,
         "verdicts": verdicts,
         "defects": defects,
@@ -268,11 +290,13 @@ def main():
     if not applied["loaded"]:
         for line in applied["stderr"].splitlines()[:6]:
             print(f"             {line}")
-    for r in rows:
-        mark = "PASS" if r["verdict"] == "pass" else "FAIL"
-        target = f":{r['port']}" if r["port"] else ""
-        print(f"  {mark}  {r['id']:<28} {r['proto']}{target:<7} {r['family']:<5}"
-              f" expected={r['expected']:<5} observed={r['observed']}")
+        print(f"  no probes executed: the ruleset did not load")
+    else:
+        for r in rows:
+            mark = "PASS" if r["verdict"] == "pass" else "FAIL"
+            target = f":{r['port']}" if r["port"] else ""
+            print(f"  {mark}  {r['id']:<28} {r['proto']}{target:<7} {r['family']:<5}"
+                  f" expected={r['expected']:<5} observed={r['observed']}")
 
     print(f"\n  ipv4={verdicts['ipv4']}  ipv6={verdicts['ipv6']}"
           f"  parity={verdicts['parity']}")

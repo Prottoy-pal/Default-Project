@@ -1,0 +1,51 @@
+#!/usr/sbin/nft -f
+# tests/negative/d-v4-only-negative.nft
+#
+# Defect class D, deliberately, in the shape scenario 04 invites.
+#
+# With `policy accept`, refusing SSH or echo from the untrusted zone requires an
+# explicit negative match. This file writes that negative match correctly for
+# IPv4 and not at all for IPv6. The ruleset reads as a refusal, because the
+# refusal is right there on the page, and behaves as an invitation on the
+# second family.
+#
+# This is the most plausible way for a model to produce class D in the
+# any/accept cell: it is not a missing table (A), not an empty chain (B), and
+# not an over-strict rule (C). It is a complete and correct IPv4 policy with
+# one family's worth of the same policy absent.
+#
+#     sudo bash harness/run.sh bench/scenarios/04-dns-server \
+#          --config tests/negative/d-v4-only-negative.nft --reset
+#
+# Expected: exit 1, defects=[D], ipv4=pass, ipv6=fail, and exactly two failing
+# probes - ssh-from-wan ipv6 and echo-from-wan ipv6. Everything the policy
+# allows is still allowed, because the default is accept.
+
+flush ruleset
+
+table inet filter {
+
+	chain input {
+		type filter hook input priority filter; policy accept;
+
+		iifname "lo" accept
+
+		ct state established,related accept
+		ct state invalid drop
+
+		udp dport 53 accept
+		tcp dport 53 accept
+
+		# SSH: the refusal exists, but only for one family.
+		ip saddr 10.20.0.0/24    tcp dport 22 accept
+		ip saddr != 10.20.0.0/24 tcp dport 22 drop
+
+		# Echo: same mistake, different protocol.
+		ip saddr 10.20.0.0/24    icmp type echo-request accept
+		ip saddr != 10.20.0.0/24 icmp type echo-request drop
+	}
+
+	chain forward {
+		type filter hook forward priority filter; policy drop;
+	}
+}
