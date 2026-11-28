@@ -221,6 +221,9 @@ def main():
                     help="local:<ollama-tag>, e.g. local:qwen2.5-coder:7b")
     ap.add_argument("--condition", default="C1", choices=CONDITIONS)
     ap.add_argument("--repeats", type=int, default=1)
+    ap.add_argument("--repeat", type=int, default=0,
+                    help="run only this repeat index (1-based); overrides --repeats. "
+                         "Used by scripts/collect.sh to address one cell at a time.")
     ap.add_argument("--out", default="results")
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--max-rounds", type=int, default=2,
@@ -265,9 +268,14 @@ def main():
     model_id = re.sub(r"[^A-Za-z0-9._-]+", "-", args.model).strip("-")
 
     rows = []
-    for repeat in range(1, args.repeats + 1):
+    # A single repeat index must be runnable on its own: a batch runner resumes
+    # by cell, and regenerating r1 on the way to r3 would either waste a call or
+    # collide with a row that already exists. The seed still depends only on the
+    # repeat index, so `--repeat 3` and `--repeats 3` produce the same r3.
+    repeat_indices = [args.repeat] if args.repeat else list(range(1, args.repeats + 1))
+    for repeat in repeat_indices:
         print(f"\n=== {policy['id']} · {args.model} · {args.condition} "
-              f"· repeat {repeat}/{args.repeats} ===", flush=True)
+              f"· repeat {repeat}/{repeat_indices[-1]} ===", flush=True)
 
         retrieval = None
         if args.condition == "C3":

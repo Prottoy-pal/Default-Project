@@ -60,7 +60,7 @@ for scen in $scenarios; do
         log="$out/_logs/${sid}__${cond}__${mid}__r${rep}.log"
         echo "==> $sid $cond $spec r$rep"
         python3 generate/run_models.py --scenario "$scen" --model "$spec" \
-                --condition "$cond" --repeats "$rep" --out "$out" > "$log" 2>&1
+                --condition "$cond" --repeat "$rep" --out "$out" > "$log" 2>&1
         rc=$?
         if [[ $rc -eq 0 && -f "$row" ]]; then
           echo "    ok  $(grep -o 'ipv6=[a-z]*' "$log" | tail -1) $(grep -o 'parity=[a-z]*' "$log" | tail -1)"
