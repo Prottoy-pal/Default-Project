@@ -250,6 +250,7 @@ CITATION.cff                  citation metadata for Zenodo / reviewers
 .gitattributes                forces LF so shell scripts survive Windows → WSL
 .gitignore                    ignores raw results, secrets, caches
 docs/
+  simple-guide.md             the project in plain words — start here if new
   context.md                  ← this file
   research-plan.md            full design: gap, RQs, metrics, threats, timeline
   sprint-01.md                14-day plan, gates G1–G3, cut list

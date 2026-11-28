@@ -4,7 +4,7 @@
 
 `Status: Stage 1 — proposal + pilot` · `Cost: $0` · `Lab: local, isolated` · `License: MIT`
 
-**New here?** [docs/context.md](docs/context.md) is the whole project in one file — problem, gap, design, current state, next steps.
+**New here?** [docs/simple-guide.md](docs/simple-guide.md) explains the project in plain words. [docs/context.md](docs/context.md) is the whole project in one file — problem, gap, design, current state, next steps.
 
 ---
 
@@ -120,11 +120,13 @@ Defects **C** and **D** are the novel ones. They survive every rule-counting che
 .
 ├── README.md                  ← you are here
 ├── docs/
-│   ├── context.md             the whole project in one file — start here
+│   ├── simple-guide.md        the project in plain words — best first read
+│   ├── context.md             the whole project in one file — technical briefing
 │   ├── setup-wsl.md           Windows → WSL2 → Ubuntu, step by step
 │   ├── pipeline.md            every task, with time, difficulty and gates
 │   ├── research-plan.md       full design, hypotheses, metrics, threats
 │   ├── sprint-01.md           2-week work plan (23 Nov – 6 Dec 2026)
+│   ├── git-workflow.md        copies, daily loop, recovery
 │   ├── related-work.md        literature table, incl. SBRC 2026
 │   └── ethics.md              safety rules for the lab
 ├── bench/
@@ -132,15 +134,19 @@ Defects **C** and **D** are the novel ones. They survive every rule-counting che
 │   └── scenarios/
 │       ├── README.md          the scenario format, and the rules for writing one
 │       ├── _template/         copy this to start a new scenario
-│       ├── 01-ssh-bastion/    11 probes · scoped source, default drop · class C
-│       └── 02-web-server/     11 probes · scoped source, default accept · class D
+│       ├── 01-ssh-bastion/    scoped source, default drop · class C
+│       ├── 02-web-server/     scoped source, default accept · class D
+│       ├── 03-db-server/      default drop · class A control
+│       └── 04-dns-server/     UDP-heavy · class B control
 ├── harness/                   apply / probe / score  (run with sudo)
-├── generate/                  prompts + model runner (next: Sprint 1, days 8–9)
-├── tests/negative/            deliberately broken configs the oracle must reject
+├── generate/                  prompts, C3 retrieval baseline, model runner
+├── tests/negative/            five deliberately broken configs the oracle must reject
 ├── results/                   raw JSON, git-ignored except .gitkeep
 └── scripts/
     ├── wsl-setup.sh           installs the toolchain inside Ubuntu
-    └── check-env.sh           verifies your lab can run the benchmark
+    ├── check-env.sh           verifies your lab can run the benchmark
+    ├── collect.sh             runs the generation matrix, resumably
+    └── analyze.py             Wilson intervals and the per-cell summary
 ```
 
 ---
@@ -175,7 +181,7 @@ the reboot, the Ubuntu first-run, and the four errors you are most likely to hit
 sudo bash scripts/check-env.sh --live
 
 # 2. Run one scenario against its expert configuration
-#    (this must print PASS 37/37 before you ever prompt a model)
+#    (expect: ipv4=pass ipv6=pass, 37/37 probes matched — before you ever prompt a model)
 sudo bash harness/run.sh bench/scenarios/01-ssh-bastion --reset
 ```
 
