@@ -1,0 +1,170 @@
+# bench/scenarios/08-bastion-plus-web/expected.yaml
+# ---------------------------------------------------------------------------
+# Oracle for scenario 08. Written before any model was prompted.
+#
+#   specified - SSH open to any source, HTTPS scoped to the administrator
+#               network, echo scoped, no forwarding.
+#   silent    - unnamed ports closed, loopback intact, neighbour discovery.
+#
+# The two scoping answers are opposite on purpose. SSH carries "open to all"
+# while HTTPS carries "administrators only", so a model that treats both the
+# same fails at least one, and a model that writes the scoped rule for one
+# family only fails it on the other family.
+# ---------------------------------------------------------------------------
+
+apiVersion: halffirewall/v1
+scenario: "08-bastion-plus-web"
+
+probes:
+  # ======================= specified =====================================
+  - id: ssh-from-wan
+    tier: specified
+    proto: tcp
+    src: wan
+    dst: dut-wan
+    dport: 22
+    expect: { ipv4: allow, ipv6: allow }
+    rationale: >-
+      A bastion is reachable from the untrusted network by definition, so SSH
+      is permitted from anywhere. This is the probe a `table ip`-only ruleset
+      fails on the second family.
+
+  - id: ssh-from-admin
+    tier: specified
+    proto: tcp
+    src: admin
+    dst: dut-admin
+    dport: 22
+    expect: { ipv4: allow, ipv6: allow }
+    rationale: >-
+      The administrator network is inside "anywhere".
+
+  - id: https-from-admin
+    tier: specified
+    proto: tcp
+    src: admin
+    dst: dut-admin
+    dport: 443
+    expect: { ipv4: allow, ipv6: allow }
+    rationale: >-
+      The management interface is for the administrator network, whose prefixes
+      the prompt states in both families.
+
+  - id: https-from-wan
+    tier: specified
+    proto: tcp
+    src: wan
+    dst: dut-wan
+    dport: 443
+    expect: { ipv4: drop, ipv6: drop }
+    rationale: >-
+      The management interface must not be reachable from the untrusted
+      network. With `policy drop` this is the default, but a model that writes
+      HTTPS with an any-source rule has exposed it - the one service the prompt
+      said to restrict.
+
+  - id: echo-from-admin
+    tier: specified
+    proto: icmp-echo
+    src: admin
+    dst: dut-admin
+    expect: { ipv4: allow, ipv6: allow }
+    rationale: >-
+      Echo is answered for the administrator network on both interfaces.
+
+  - id: echo-from-wan
+    tier: specified
+    proto: icmp-echo
+    src: wan
+    dst: dut-wan
+    expect: { ipv4: drop, ipv6: drop }
+    rationale: >-
+      The prompt refuses echo from anywhere else.
+
+  - id: no-forwarding-admin-to-wan
+    tier: specified
+    proto: tcp
+    src: admin
+    dst: wan
+    dport: 80
+    expect: { ipv4: drop, ipv6: drop }
+    rationale: >-
+      The host does not forward. The lab routes this packet through the DUT so
+      the forward hook has to drop it.
+
+  - id: no-forwarding-wan-to-admin
+    tier: specified
+    proto: tcp
+    src: wan
+    dst: admin
+    dport: 22
+    expect: { ipv4: drop, ipv6: drop }
+    rationale: >-
+      Same requirement in the other direction. A bastion that becomes a router
+      defeats its own purpose.
+
+  # ======================= silent ========================================
+  - id: unused-tcp-from-wan
+    tier: silent
+    proto: tcp
+    src: wan
+    dst: dut-wan
+    dport: [80, 3306, 5432, 8080, 9100]
+    expect: { ipv4: drop, ipv6: drop }
+    rationale: >-
+      "Drop every other inbound packet" names no ports. A bastion with an HTTP
+      server, a database or an exporter exposed was not asked for.
+
+  - id: unused-udp-from-wan
+    tier: silent
+    proto: udp
+    src: wan
+    dst: dut-wan
+    dport: [53, 123]
+    expect: { ipv4: drop, ipv6: drop }
+    rationale: >-
+      No UDP service is described.
+
+  - id: loopback-echo
+    tier: silent
+    proto: icmp-echo
+    src: loopback
+    dst: loopback
+    expect: { ipv4: allow, ipv6: allow }
+    rationale: >-
+      A host that filters its own stack breaks local services.
+
+  - id: loopback-ssh
+    tier: silent
+    proto: tcp
+    src: loopback
+    dst: loopback
+    dport: 22
+    expect: { ipv4: allow, ipv6: allow }
+    rationale: >-
+      Local administration must still reach the bastion over both families.
+
+  - id: ipv6-neighbour-discovery
+    tier: silent
+    proto: icmp6-nd
+    src: admin
+    dst: dut-admin
+    expect: { ipv6: allow }
+    rationale: >-
+      Never mentioned and never optional. A blanket `icmpv6 drop` is defect E.
+
+# Declared rather than silently omitted.
+unprobed:
+  - id: stateful-return-traffic
+    reason: >-
+      Needs a conntrack-aware probe; its verdict is confounded with the output
+      chain. Deferred to probe v2 and named in threats to validity.
+  - id: path-mtu-discovery
+    reason: >-
+      Needs an MTU below 1500 to force an ICMPv6 "packet too big". A separate
+      scenario, not a probe bolted onto this one.
+  - id: tcp-reset-vs-silent-drop
+    reason: >-
+      A `reject` where the policy says `drop` is a different failure mode from
+      fail-open, and the current probe vocabulary records both as "not
+      reached". Named here rather than scored as a pass.

@@ -26,7 +26,6 @@ import common
 SINK = Path(__file__).resolve().parent / "_sink.py"
 STATE = Path("/tmp/halffirewall")
 PIDFILE = STATE / "sink.pid"
-SINKLOG = STATE / "sink.log"
 
 
 def _ns(action, name):
@@ -52,30 +51,44 @@ def _step(argv, what):
 
 def stop_sink():
     if PIDFILE.exists():
-        try:
-            pid = int(PIDFILE.read_text().strip())
-            os.kill(pid, signal.SIGTERM)
-            time.sleep(0.2)
-        except (ValueError, ProcessLookupError, PermissionError):
-            pass
+        for line in PIDFILE.read_text().split():
+            try:
+                os.kill(int(line), signal.SIGTERM)
+            except (ValueError, ProcessLookupError, PermissionError):
+                pass
+        time.sleep(0.5)
         PIDFILE.unlink(missing_ok=True)
 
 
 def start_sink(topo):
+    """Start the service sink in every namespace, not just the DUT.
+
+    Forwarding probes target a peer (`dst: wan` or `dst: admin`). A TCP packet
+    to a peer with no listener is answered with a RST, which the probe already
+    reads as "the packet arrived". A UDP packet gets an ICMP port-unreachable,
+    and whether that error makes it back depends on conntrack and the return
+    path - too fragile to build the oracle on. A sink in every namespace means
+    a forwarded packet is answered with a real reply, so `allow` and `drop` are
+    decided by the ruleset alone.
+    """
     STATE.mkdir(parents=True, exist_ok=True)
     spec = json.dumps(topo.get("services", {}))
-    log = SINKLOG.open("w")
-    proc = subprocess.Popen(
-        ["ip", "netns", "exec", common.DUT_NS, "python3", str(SINK), spec],
-        stdout=log,
-        stderr=log,
-        start_new_session=True,
-    )
+    procs = []
+    for ns in topo["namespaces"]:
+        log = (STATE / f"sink-{ns}.log").open("w")
+        proc = subprocess.Popen(
+            ["ip", "netns", "exec", ns, "python3", str(SINK), spec],
+            stdout=log,
+            stderr=log,
+            start_new_session=True,
+        )
+        procs.append((ns, proc))
     time.sleep(1.0)
-    if proc.poll() is not None:
-        _die(f"sink died:\n{SINKLOG.read_text()}")
-    PIDFILE.write_text(str(proc.pid))
-    return proc.pid
+    for ns, proc in procs:
+        if proc.poll() is not None:
+            _die(f"sink died in {ns}:\n{(STATE / f'sink-{ns}.log').read_text()}")
+    PIDFILE.write_text("\n".join(str(proc.pid) for _, proc in procs))
+    return [proc.pid for _, proc in procs]
 
 
 def down(topo):

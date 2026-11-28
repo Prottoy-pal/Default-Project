@@ -1,9 +1,10 @@
 """harness/_sink.py — the services the lab probes against.
 
-Started inside the DUT namespace by lab.py. Opens one listener per declared
-port, on both address families, and either accepts-and-closes (TCP) or echoes
-one byte (UDP). No protocol is implemented on purpose: the benchmark measures
-reachability, not the service.
+Started inside every namespace by lab.py, so a probe against the DUT and a
+forwarding probe against a peer are both answered the same way. Opens one
+listener per declared port, on both address families, and either
+accepts-and-closes (TCP) or echoes one byte (UDP). No protocol is implemented
+on purpose: the benchmark measures reachability, not the service.
 
 Exit code 0 means every declared port bound successfully.
 """
