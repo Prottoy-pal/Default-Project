@@ -299,8 +299,8 @@ which expand to 37 checks across two families, and it already states, in
 | **Gate B** — oracle accepts the expert and rejects every known-bad config | **passed 28 Nov** · six negative controls, each caught with its own class |
 | Scenarios 01–08 (all eight service families) | **written and validated** · experts pass 100% |
 | `generate/run_models.py` + C3 retrieval baseline | **written and executed** against `qwen2.5-coder:7b` (local Ollama) |
-| `scripts/analyze.py` (Wilson interval) | **written; runs on the pilot once it completes** |
-| Pilot dataset | **running** — 8 scenarios × {C1, C2} |
+| `scripts/analyze.py` (Wilson interval) | **written and run** — see `docs/pilot-report.md` |
+| Pilot dataset | **done** — 8 scenarios × {C1, C2}, one repeat, one model |
 
 A model has now been prompted, and the first result was two things worth
 recording before any number: the runner works, and the instrument needed four

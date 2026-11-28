@@ -44,7 +44,7 @@ Two things are proven, and they are the two that matter most.
 | **The test can fail** | **Passed 28 Nov** | A hand-written correct firewall scores 100%; the deliberately broken ones are caught with the right defect class |
 | **A model has written a firewall** | **Done** | `qwen2.5-coder:7b` ran locally; the first cell already exposed four harness bugs |
 | **The benchmark is complete** | **8 scenarios** | All eight service families, each with a 100%-passing hand-written reference |
-| **A dataset exists** | **In progress** | A clean C1/C2 pilot across the eight scenarios is running |
+| **A dataset exists** | **First pilot done** | 8 scenarios × 2 conditions; the report is `docs/pilot-report.md` |
 
 The second row is the one people skip. A test suite that has never rejected
 anything is a set of assertions that happen to pass — it might be checking
@@ -68,11 +68,12 @@ configurations in `tests/negative/`, each caught with exactly its own class
 ## 4. What it cannot do yet
 
 - Produce a complete dataset. The first pilot (eight scenarios, two conditions)
-  is running; the full matrix is still to come.
-- Draw a conclusion. There are no finished numbers yet.
+  is done and written up in `docs/pilot-report.md`; the full matrix is still to
+  come.
+- Draw a conclusion. There are first numbers, but not enough to generalise.
 
 The measuring instrument is finished and has survived its first contact with a
-real model. The measurement itself has started.
+real model. The measurement has started.
 
 ---
 
@@ -105,18 +106,13 @@ is measuring nothing.
 
 ## 6. What happens next
 
-The single-cell smoke test is done — it cost one call and found four harness
-bugs, which is exactly why it ran before the matrix. The pilot is now the eight
-scenarios, two conditions, one repeat:
+The single-cell smoke test and the first pilot are both done. The pilot's
+clear message is that the model mostly fails at *syntax*, and the next step is
+to let it fix its own mistakes: condition C4 feeds the error back and asks for
+a correction.
 
-```bash
-sudo bash scripts/collect.sh --conditions C1,C2 --repeats 1 \
-     --models local:qwen2.5-coder:7b
-```
-
-After that: the remaining four scenarios (to reach twelve), the other two model
-slots, then the full three-repeat matrix and the first real numbers. That is
-gate **D**, and it is where this stops being a plan and starts being a finding.
+After that: the remaining model slots and the full three-repeat matrix. That
+is gate **D**, where this stops being a plan and starts being a finding.
 
 ---
 
